@@ -19,6 +19,7 @@ import orbitslot.output.MetricsTablePrinter;
 import orbitslot.output.PassTablePrinter;
 import orbitslot.output.SchedulePrinter;
 import orbitslot.scenario.PassSource;
+import orbitslot.scenario.Predict4JavaPassSource;
 import orbitslot.scenario.SimulatedPassSource;
 import orbitslot.scheduler.ScheduleValidator;
 import orbitslot.scheduler.Scheduler;
@@ -60,6 +61,13 @@ public final class Main {
             return;
         }
 
+        // Pick the scheduler(s) first, so a typo fails before the slow prediction.
+        List<Constraint> constraints = List.of(new MinElevationConstraint(), new SlewTimeConstraint());
+        SchedulerRegistry registry = new SchedulerRegistry(constraints);
+        List<Scheduler> chosen = options.algo().equals("all")
+                ? new ArrayList<>(registry.all())
+                : List.of(registry.get(options.algo()));
+
         // --- Input -----------------------------------------------------------
         Assumptions assumptions = new AssumptionsLoader().load(DATA.resolve("assumptions.properties"));
         String stationId = options.station() != null ? options.station() : assumptions.getString("station.id");
@@ -71,7 +79,9 @@ public final class Main {
 
         Instant start = assumptions.getInstant("schedule.start");
         Instant end = start.plusSeconds(3600L * assumptions.getInt("schedule.horizonHours"));
-        PassSource source = new SimulatedPassSource(assumptions);
+        PassSource source = options.source().equals("sim")
+                ? new SimulatedPassSource(assumptions)
+                : new Predict4JavaPassSource(catalog);
         List<Pass> passes = source.passes(catalog.satellites(), station, start, end);
 
         ZoneId zone = assumptions.getZone("display.timezone");
@@ -91,12 +101,6 @@ public final class Main {
         }
 
         // --- Scheduling --------------------------------------------------------
-        List<Constraint> constraints = List.of(new MinElevationConstraint(), new SlewTimeConstraint());
-        SchedulerRegistry registry = new SchedulerRegistry(constraints);
-        List<Scheduler> chosen = options.algo().equals("all")
-                ? new ArrayList<>(registry.all())
-                : List.of(registry.get(options.algo()));
-
         MetricsCalculator calculator = new MetricsCalculator(assumptions.getInt("metrics.highPriorityMin"));
         ScheduleValidator validator = new ScheduleValidator();
         SchedulePrinter printer = new SchedulePrinter(zone, rowLimit);
