@@ -4,7 +4,6 @@
 # Usage:
 #   ./run.sh                                  runs orbitslot.Main
 #   ./run.sh some args                        passes args to orbitslot.Main
-#   MAIN=orbitslot.tools.Predict4JavaCheck ./run.sh
 set -e
 cd "$(dirname "$0")"
 

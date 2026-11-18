@@ -16,7 +16,6 @@ algorithms. Java 21, no build tool, console output.
 .\run.ps1 --benchmark --scenarios 5
 .\run.ps1 --charts                 # any mode: also write PNG charts + Gantt timelines to results/charts/
 .\run.ps1 --help
-.\run.ps1 -Main orbitslot.tools.Predict4JavaCheck   # OMM -> TLE -> predict4java round-trip check
 .\test.ps1                         # compile src + test, run all JUnit 5 tests
 ```
 
