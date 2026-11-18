@@ -4,6 +4,7 @@ import orbitslot.model.Assignment;
 import orbitslot.model.DroppedPass;
 import orbitslot.model.Pass;
 import orbitslot.model.Schedule;
+import orbitslot.scheduler.Objective;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -32,7 +33,8 @@ public final class MetricsCalculator {
         int highMissed = (int) schedule.dropped().stream().map(DroppedPass::pass).filter(this::isHighPriority).count();
 
         return new Metrics(algorithm, input.size(), schedule.assignments().size(), schedule.dropped().size(),
-                downlinked, available, 100.0 * busySeconds / capacitySeconds, highTotal, highMissed);
+                downlinked, available, 100.0 * busySeconds / capacitySeconds, highTotal, highMissed,
+                Objective.score(schedule));
     }
 
     private boolean isHighPriority(Pass p) {

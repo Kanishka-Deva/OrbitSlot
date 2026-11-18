@@ -1,6 +1,7 @@
 package orbitslot.scheduler;
 
 import orbitslot.constraint.Constraint;
+import orbitslot.io.Assumptions;
 
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -15,9 +16,14 @@ public final class SchedulerRegistry {
 
     private final Map<String, Scheduler> byName = new LinkedHashMap<>();
 
-    public SchedulerRegistry(List<Constraint> constraints) {
+    public SchedulerRegistry(List<Constraint> constraints, Assumptions a) {
         register(new FcfsScheduler(constraints));
         register(new GreedyPriorityScheduler(constraints));
+        register(new SimulatedAnnealingScheduler(constraints,
+                a.getLong("random.seed"),
+                a.getInt("sa.iterations"),
+                a.getDouble("sa.startTemperatureFraction"),
+                a.getDouble("sa.endTemperatureFraction")));
     }
 
     private void register(Scheduler scheduler) {

@@ -1,0 +1,83 @@
+package orbitslot.benchmark;
+
+import orbitslot.metrics.Metrics;
+import orbitslot.metrics.MetricsCalculator;
+import orbitslot.model.Disruption;
+import orbitslot.model.GroundStation;
+import orbitslot.model.Pass;
+import orbitslot.model.Schedule;
+import orbitslot.repair.DisruptionResult;
+import orbitslot.repair.DisruptionSimulator;
+import orbitslot.repair.RepairStrategy;
+import orbitslot.scenario.ScenarioGenerator;
+import orbitslot.scheduler.ScheduleValidator;
+import orbitslot.scheduler.Scheduler;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Runs every scheduler, and every repair strategy, on the same N seeded
+ * scenarios. Each schedule is validated; an invalid one stops the benchmark.
+ *
+ * Disruption part: the plan to disrupt is made by {@code planAlgorithm}, and
+ * all repair strategies get the same plan and the same disruptions.
+ */
+public final class BenchmarkRunner {
+
+    /** One scheduler on one scenario. */
+    public record PlanRow(long seed, Metrics metrics, long runtimeMs) { }
+
+    /** One repair strategy on one scenario. */
+    public record RepairRow(long seed, Metrics metrics, int forcedLosses, int planChanges) { }
+
+    public record Results(List<PlanRow> plans, List<RepairRow> repairs) { }
+
+    private final ScenarioGenerator generator;
+    private final MetricsCalculator calculator;
+    private final ScheduleValidator validator = new ScheduleValidator();
+    private final DisruptionSimulator simulator;
+
+    public BenchmarkRunner(ScenarioGenerator generator, MetricsCalculator calculator, DisruptionSimulator simulator) {
+        this.generator = generator;
+        this.calculator = calculator;
+        this.simulator = simulator;
+    }
+
+    public Results run(List<Pass> pool, GroundStation station, Instant start, Instant end, int scenarios,
+                       long firstSeed, List<Scheduler> schedulers, Scheduler planAlgorithm,
+                       List<RepairStrategy> repairs) {
+        List<PlanRow> planRows = new ArrayList<>();
+        List<RepairRow> repairRows = new ArrayList<>();
+
+        for (long seed = firstSeed; seed < firstSeed + scenarios; seed++) {
+            List<Pass> passes = generator.passes(pool, seed);
+
+            for (Scheduler scheduler : schedulers) {
+                long t0 = System.nanoTime();
+                Schedule schedule = scheduler.schedule(passes, station);
+                long ms = (System.nanoTime() - t0) / 1_000_000;
+                check(scheduler.name(), seed, validator.validate(schedule, passes));
+                planRows.add(new PlanRow(seed, calculator.calculate(scheduler.name(), passes, schedule, start, end), ms));
+            }
+
+            Schedule plan = planAlgorithm.schedule(passes, station);
+            List<Disruption> disruptions = generator.disruptions(plan, start, end, seed);
+            for (RepairStrategy repair : repairs) {
+                DisruptionResult r = simulator.run(plan, passes, disruptions, repair);
+                check(repair.name(), seed, validator.validate(r.schedule(), passes, disruptions));
+                repairRows.add(new RepairRow(seed, calculator.calculate(repair.name(), passes, r.schedule(), start, end),
+                        r.forcedLosses(), r.planChanges()));
+            }
+        }
+        return new Results(planRows, repairRows);
+    }
+
+    private static void check(String name, long seed, List<String> problems) {
+        if (!problems.isEmpty()) {
+            problems.forEach(p -> System.err.println("INVALID " + name + " seed " + seed + ": " + p));
+            throw new IllegalStateException(name + " produced an invalid schedule for seed " + seed);
+        }
+    }
+}
