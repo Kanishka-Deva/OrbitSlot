@@ -120,9 +120,9 @@ Measured on 18 Nov (20 scenarios, seeds 42-61, 100 satellites each, real passes,
 
 ## Stage 5: Hardening (W6: 23–29 Dec, light week)
 
-- [ ] JUnit 5 tests via the console-standalone jar: each constraint, both schedulers on small hand-made cases (e.g. 3 overlapping passes where we know the right answer), and the validator.
-- [ ] Remove dead code; add short Javadoc comments on the interfaces; everyone should be able to explain every class.
-- [ ] Draw the UML class diagram from the real code.
+- [x] JUnit 5 tests via the console-standalone jar (`test.ps1` / `test.sh`, compiled into `out-test/`): 32 tests over each constraint and `Turnaround`, FCFS/Greedy/SA on hand-made cases with known answers (incl. one where SA must beat Greedy: 8400 vs 2160), the validator (every kind of broken schedule), `Schedule`, metrics, and no/rolling repair with listeners. Checked that they catch bugs: dropping the setup time makes 4 fail.
+- [x] Removed dead code (`Pass.overlaps`, an unused `StationLoader.load` overload, stale "Stage N" comments); Javadoc on `Scheduler.schedule` and `RepairStrategy`.
+- [x] UML class diagrams from the real code: `docs/uml.md` (Mermaid, 4 views + pattern table).
 
 ## Stage 6: Extensions (once we decide to go ahead)
 
