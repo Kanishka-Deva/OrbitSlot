@@ -245,7 +245,7 @@ classDiagram
     BenchmarkRunner ..> ScheduleValidator
 ```
 
-## 4. Input and output (`io`, `catalog`, `scenario`, `metrics`, `output`)
+## 4. Input and output (`io`, `catalog`, `scenario`, `metrics`, `output`, `chart`)
 
 ```mermaid
 classDiagram
@@ -306,6 +306,32 @@ classDiagram
     class MetricsTablePrinter
     class PassTablePrinter
     class BenchmarkPrinter
+
+    class ChartWriter {
+        +singleRunMetrics(String, String, List~Metrics~)
+        +benchmark(Results, String)
+        +write(String, BufferedImage)
+    }
+    class BarChart {
+        +render(title, subtitle, unit, List~Bar~, format, slots) BufferedImage
+    }
+    class GroupedBarChart {
+        +render(title, subtitle, unit, axis, categories, List~Series~) BufferedImage
+    }
+    class GanttChart {
+        +render(title, subtitle, List~Panel~, Instant, Instant) BufferedImage
+    }
+    class Canvas {
+        <<package-private utility>>
+        colours, fonts, ticks()
+    }
+    ChartWriter ..> BarChart
+    ChartWriter ..> GroupedBarChart
+    ChartWriter ..> Metrics
+    GanttChart ..> Schedule : reads only
+    BarChart ..> Canvas
+    GroupedBarChart ..> Canvas
+    GanttChart ..> Canvas
 ```
 
 ## Design patterns at a glance
