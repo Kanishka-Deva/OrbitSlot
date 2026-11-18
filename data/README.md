@@ -16,7 +16,7 @@ The satellite type comes from the file: `weather` â†’ `WeatherSat`, `iridium` â†
 - predict4java reads only the classic TLE format. We convert each OMM JSON record to TLE
   lines (`orbitslot.io.OmmToTleConverter`). TLEs can't hold catalog numbers above 99999,
   so those objects are skipped (in this snapshot: MTG-I2, 100530, which is GEO anyway).
-- Only LEO satellites (period < 225 min) are scheduled. GEO, Molniya and MEO objects are
+- Only LEO satellites (period < 128 min, i.e. altitude up to ~2000 km) are scheduled. GEO, Molniya and MEO objects are
   excluded and listed at load time.
 - The snapshot is fixed for reproducible offline demos. Orbit predictions get less
   accurate the further the planning window is from the epochs (a few days is fine).

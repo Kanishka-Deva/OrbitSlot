@@ -8,6 +8,7 @@
 # If PowerShell blocks the script, run:
 #   powershell -ExecutionPolicy Bypass -File run.ps1
 
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$Main = "orbitslot.Main",
     [Parameter(ValueFromRemainingArguments = $true)] [string[]]$AppArgs

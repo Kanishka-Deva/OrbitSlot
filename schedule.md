@@ -27,7 +27,7 @@ Stages overlap by a few days on purpose so that different people can work on the
 
 ## Stage 0: Setup (W1: 18–24 Nov)
 
-- [ ] Git repo on GitHub; everyone can push. Agree on simple branch rules (work on a feature branch, merge into `main` only when it compiles).
+- [x] Git repo (local for now; GitHub later). Branch rules: work on a feature branch, merge into `main` with `--no-ff` only when it compiles, so a whole stage can be undone with one `git revert -m 1 <merge>`.
 - [ ] Folder layout:
   ```
   oop/
@@ -38,16 +38,16 @@ Stages overlap by a few days on purpose so that different people can work on the
     out/                     compiled classes (git-ignored)
     run.ps1 / run.sh         compile + run scripts
   ```
-- [ ] Download the predict4java jar (and check what it depends on) into `lib/`.
-- [ ] Compile/run script with no build tool:
+- [x] Download the predict4java jar (and check what it depends on) into `lib/`. See `lib/README.md` (predict4java is GPL v2).
+- [x] Compile/run script with no build tool (`run.ps1`, `run.sh`):
   ```powershell
   $src = Get-ChildItem -Recurse src -Filter *.java | % FullName
   javac --release 21 -d out -cp "lib/*" $src
   java -cp "out;lib/*" orbitslot.Main @args
   ```
-- [ ] Save a **CelesTrak snapshot** in TLE format (e.g. the `weather`, `cubesat` and `stations` groups) to `data/`, so demos work offline.
-  - Note: predict4java reads TLEs. Objects with 6-digit catalog numbers have no TLE, so leave them out and say so in the report.
-- [ ] `data/assumptions.properties`: antenna count, slew speed (deg/s), min elevation, downlink rate per satellite type, buffer sizes, priority ranges. **All made-up numbers go here and nowhere else.**
+- [x] Save a **CelesTrak snapshot** to `data/celestrak/` (OMM JSON: weather, iridium, cubesat), so demos work offline.
+  - Decision: we keep OMM JSON and convert to TLE with `orbitslot.io.OmmToTleConverter` (checked against CelesTrak's own TLE output and round-tripped through predict4java: `.\run.ps1 -Main orbitslot.tools.Predict4JavaCheck`). Objects with 6-digit catalog numbers can't be TLEs and are left out (say so in the report).
+- [x] `data/assumptions.properties`: antenna count, slew speed (deg/s), min elevation, downlink rate per satellite type, buffer sizes, priority ranges. **All made-up numbers go here and nowhere else.**
 
 ## Stage 1: Domain model + simulated passes (W1–W2: 21 Nov – 1 Dec)
 
@@ -58,9 +58,15 @@ Packages and classes (keep them small and easy to explain):
 - `scenario`: `SimulatedPassSource` (random but **seeded** passes), behind a `PassSource` interface
 
 Tasks:
-- [ ] Write `PassSource` as an interface now, so the real predict4java source in Stage 3 just plugs in. This is our first real use of polymorphism.
-- [ ] Data volume per pass = downlink rate × pass duration (an assumption; write it down in the assumptions file).
-- [ ] `Main` prints the passes as a sorted table.
+- [x] Write `PassSource` as an interface now, so the real predict4java source in Stage 3 just plugs in. This is our first real use of polymorphism.
+- [x] Data volume per pass = downlink rate × pass duration (an assumption; write it down in the assumptions file).
+- [x] `Main` prints the passes as a sorted table (`--all` for every row).
+
+Decisions made in Stage 1:
+- One ground station: SatNOGS #1492 (Archenhold, Berlin). Antennas configurable, default 2. Window 24 h from a fixed start, min elevation 10°. Times printed in UTC.
+- LEO only (period < 128 min); GEO, Molniya and MEO objects are excluded and listed at start-up.
+- Priority: each type has a range (weather 7–10, comms 4–7, cubesat 1–5); each satellite gets its own seeded value inside it; `data/priorities.csv` can pin exact values.
+- Satellite loading (`catalog` package, with `SatelliteFactory`) was done here instead of Stage 3, so simulated passes use the real satellite list.
 
 ## Stage 2: Scheduling core (W2–W3: 25 Nov – 8 Dec), the most important stage
 
@@ -86,6 +92,7 @@ Tasks:
 
 - [ ] `TleLoader`: reads the CelesTrak TLE snapshot and maps each satellite to a subclass (using the group name or a small mapping file). This can be a simple **Factory**.
 - [ ] `Predict4JavaPassSource implements PassSource`: predicts passes over a time window (e.g. 24 h) for one station, using the minimum elevation from the assumptions file.
+  - Found in Stage 0: predict4java's AOS/LOS are at the 0° horizon, so trim each pass to the 10° mask (or drop it if max elevation < 10°), and `getPasses` can return passes beyond the window, so clip to [start, end).
 - [ ] Station coordinates in `data/stations.csv` (we can take a few real ones from SatNOGS).
 - [ ] Compare a few predicted passes with an online pass predictor as a sanity check.
 - [ ] **Fallback:** if predict4java causes trouble, keep using `SimulatedPassSource` and keep the rest of the project moving. Orbit prediction must not block scheduling.
