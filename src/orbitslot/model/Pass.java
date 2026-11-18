@@ -34,9 +34,4 @@ public record Pass(
     public double dataVolumeMB() {
         return satellite.downlinkKbps() * duration().toSeconds() / 8_000.0;
     }
-
-    /** True if the two passes share any moment in time. */
-    public boolean overlaps(Pass other) {
-        return aos.isBefore(other.los) && other.aos.isBefore(los);
-    }
 }

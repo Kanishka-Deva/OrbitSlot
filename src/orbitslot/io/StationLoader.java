@@ -17,11 +17,7 @@ import java.util.List;
  */
 public final class StationLoader {
 
-    /** Loads the station named by station.id in the assumptions. */
-    public GroundStation load(Path csv, Assumptions assumptions) throws IOException {
-        return load(csv, assumptions, assumptions.getString("station.id"));
-    }
-
+    /** Loads the station whose id is {@code wantedId}; fails if there is none. */
     public GroundStation load(Path csv, Assumptions assumptions, String wantedId) throws IOException {
         List<String> lines = Files.readAllLines(csv, StandardCharsets.UTF_8);
 

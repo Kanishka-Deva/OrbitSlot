@@ -35,7 +35,7 @@ public final class SatelliteCatalog {
 
     private final List<Satellite> satellites = new ArrayList<>();
     private final List<Excluded> excluded = new ArrayList<>();
-    /** Orbit data of each kept satellite, by NORAD id (used by real pass prediction in Stage 3). */
+    /** Orbit data of each kept satellite, by NORAD id (used by real pass prediction). */
     private final Map<Integer, OmmRecord> orbits = new HashMap<>();
 
     private SatelliteCatalog() { }
