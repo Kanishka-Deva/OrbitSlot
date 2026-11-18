@@ -17,12 +17,19 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-# Find javac: PATH first, then JAVA_HOME.
+# Find javac: PATH first, then JAVA_HOME of this terminal, then the
+# system-wide JAVA_HOME (set by the JDK installer, but only visible to
+# terminals opened after the install).
 $javac = (Get-Command javac -ErrorAction SilentlyContinue).Source
 $java  = (Get-Command java  -ErrorAction SilentlyContinue).Source
-if (-not $javac -and $env:JAVA_HOME) {
-    $javac = Join-Path $env:JAVA_HOME "bin\javac.exe"
-    $java  = Join-Path $env:JAVA_HOME "bin\java.exe"
+if (-not $javac) {
+    $javaHome = $env:JAVA_HOME
+    if (-not $javaHome) { $javaHome = [Environment]::GetEnvironmentVariable("JAVA_HOME", "Machine") }
+    if (-not $javaHome) { $javaHome = [Environment]::GetEnvironmentVariable("JAVA_HOME", "User") }
+    if ($javaHome) {
+        $javac = Join-Path $javaHome "bin\javac.exe"
+        $java  = Join-Path $javaHome "bin\java.exe"
+    }
 }
 if (-not $javac -or -not (Test-Path $javac)) {
     Write-Error "javac not found. Install JDK 21 (e.g. winget install EclipseAdoptium.Temurin.21.JDK) and open a new terminal."
