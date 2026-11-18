@@ -2,7 +2,7 @@ package orbitslot;
 
 /** Command-line options; see {@link #USAGE}. */
 public record CliOptions(String mode, String source, String algo, String repair, String station,
-                         Integer scenarios, boolean showPasses, boolean showAll, boolean help) {
+                         Integer scenarios, boolean showPasses, boolean showAll, boolean charts, boolean help) {
 
     public static final String USAGE = """
             Usage: run.ps1 [mode] [options]
@@ -18,6 +18,7 @@ public record CliOptions(String mode, String source, String algo, String repair,
               --station ID                 station id from data/stations.csv (default from assumptions)
               --passes                     also print the input pass list
               --all                        print every row (no limits)
+              --charts                     also write PNG charts + Gantt timelines to results/charts/
               --help                       show this text""";
 
     public static CliOptions parse(String[] args) {
@@ -27,7 +28,7 @@ public record CliOptions(String mode, String source, String algo, String repair,
         String repair = "rolling";
         String station = null;
         Integer scenarios = null;
-        boolean showPasses = false, showAll = false, help = false;
+        boolean showPasses = false, showAll = false, charts = false, help = false;
 
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
@@ -40,6 +41,7 @@ public record CliOptions(String mode, String source, String algo, String repair,
                 case "--scenarios" -> scenarios = positiveInt(value(args, ++i, "--scenarios"));
                 case "--passes" -> showPasses = true;
                 case "--all" -> showAll = true;
+                case "--charts" -> charts = true;
                 case "--help", "-h" -> help = true;
                 default -> throw new IllegalArgumentException("Unknown option: " + args[i]);
             }
@@ -47,7 +49,7 @@ public record CliOptions(String mode, String source, String algo, String repair,
         if (!source.equals("celestrak") && !source.equals("sim")) {
             throw new IllegalArgumentException("--source must be celestrak or sim, got " + source);
         }
-        return new CliOptions(mode, source, algo, repair, station, scenarios, showPasses, showAll, help);
+        return new CliOptions(mode, source, algo, repair, station, scenarios, showPasses, showAll, charts, help);
     }
 
     private static String value(String[] args, int i, String option) {

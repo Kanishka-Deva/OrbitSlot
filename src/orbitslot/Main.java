@@ -5,6 +5,8 @@ import orbitslot.benchmark.BenchmarkRunner;
 import orbitslot.catalog.PriorityAssigner;
 import orbitslot.catalog.SatelliteCatalog;
 import orbitslot.catalog.SatelliteFactory;
+import orbitslot.chart.ChartWriter;
+import orbitslot.chart.GanttChart;
 import orbitslot.constraint.Constraint;
 import orbitslot.constraint.MinElevationConstraint;
 import orbitslot.constraint.SlewTimeConstraint;
@@ -14,6 +16,7 @@ import orbitslot.io.PriorityOverridesLoader;
 import orbitslot.io.StationLoader;
 import orbitslot.metrics.Metrics;
 import orbitslot.metrics.MetricsCalculator;
+import orbitslot.model.Assignment;
 import orbitslot.model.Disruption;
 import orbitslot.model.GroundStation;
 import orbitslot.model.Pass;
@@ -35,6 +38,7 @@ import orbitslot.scheduler.ScheduleValidator;
 import orbitslot.scheduler.Scheduler;
 import orbitslot.scheduler.SchedulerRegistry;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
@@ -43,6 +47,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Entry point. Three modes (run with --help):
@@ -53,6 +60,7 @@ public final class Main {
 
     private static final Path DATA = Path.of("data");
     private static final Path BENCHMARK_CSV = Path.of("results", "benchmark.csv");
+    private static final Path CHARTS = Path.of("results", "charts");
     private static final int DEFAULT_ROW_LIMIT = 25;
 
     /** Everything the modes share. */
@@ -61,6 +69,7 @@ public final class Main {
                            ZoneId zone, int rowLimit) { }
 
     public static void main(String[] args) {
+        System.setProperty("java.awt.headless", "true");   // charts are drawn off-screen
         try {
             run(CliOptions.parse(args));
         } catch (IllegalArgumentException | IllegalStateException e) {
@@ -94,11 +103,11 @@ public final class Main {
         switch (options.mode()) {
             case "disrupt" -> {
                 Scheduler planner = options.algo().equals("all") ? registry.get("greedy") : schedulers.get(0);
-                runDisrupt(ctx, planner, repairs);
+                runDisrupt(ctx, planner, repairs, options.charts());
             }
             case "benchmark" -> runBenchmark(ctx, options, schedulers, registry.get("greedy"),
                     repairStrategies("all", assumptions, start, end));
-            default -> runPlan(ctx, schedulers);
+            default -> runPlan(ctx, schedulers, options.charts());
         }
     }
 
@@ -137,25 +146,42 @@ public final class Main {
 
     // --- plan ----------------------------------------------------------------
 
-    private static void runPlan(Context ctx, List<Scheduler> schedulers) {
+    private static void runPlan(Context ctx, List<Scheduler> schedulers, boolean charts) throws IOException {
         ScheduleValidator validator = new ScheduleValidator();
         SchedulePrinter printer = new SchedulePrinter(ctx.zone(), ctx.rowLimit());
         List<Metrics> results = new ArrayList<>();
+        List<GanttChart.Panel> panels = new ArrayList<>();
 
         for (Scheduler scheduler : schedulers) {
             Schedule schedule = scheduler.schedule(ctx.passes(), ctx.station());
+            panels.add(new GanttChart.Panel(scheduler.name(), schedule));
             requireValid(scheduler.name(), validator.validate(schedule, ctx.passes()));
             printer.print(scheduler.name(), schedule, ctx.start(), ctx.end(), System.out);
             results.add(ctx.calculator().calculate(scheduler.name(), ctx.passes(), schedule, ctx.start(), ctx.end()));
         }
         new MetricsTablePrinter().print("Metrics", results, System.out);
         System.out.println("All schedules passed validation (no overlaps, turnaround respected).");
+        if (charts) {
+            ChartWriter writer = new ChartWriter(CHARTS);
+            GanttChart gantt = gantt(ctx);
+            for (GanttChart.Panel p : panels) {
+                writer.write("gantt-" + p.title(), gantt.render("Schedule: " + p.title(), subtitle(ctx),
+                        List.of(p), ctx.start(), ctx.end()));
+            }
+            if (panels.size() > 1) {
+                writer.write("gantt-compare", gantt.render("Schedules compared", subtitle(ctx), panels,
+                        ctx.start(), ctx.end()));
+            }
+            writer.singleRunMetrics("plan", subtitle(ctx), results);
+            printCharts(writer);
+        }
         printFootnote(ctx);
     }
 
     // --- disrupt -------------------------------------------------------------
 
-    private static void runDisrupt(Context ctx, Scheduler planner, List<RepairStrategy> repairs) {
+    private static void runDisrupt(Context ctx, Scheduler planner, List<RepairStrategy> repairs, boolean charts)
+            throws IOException {
         ScheduleValidator validator = new ScheduleValidator();
         Schedule plan = planner.schedule(ctx.passes(), ctx.station());
         requireValid(planner.name(), validator.validate(plan, ctx.passes()));
@@ -196,6 +222,22 @@ public final class Main {
             System.out.printf("%-10s  %13d  %12d%n", r.strategy(), r.forcedLosses(), r.planChanges());
         }
         System.out.println("All repaired schedules passed validation (no cancelled pass kept, nothing during outages).");
+        if (charts) {
+            ChartWriter writer = new ChartWriter(CHARTS);
+            GanttChart gantt = gantt(ctx);
+            String sub = subtitle(ctx) + "; " + disruptions.size() + " seeded disruptions";
+            for (DisruptionResult r : results) {
+                List<GanttChart.Panel> panels = List.of(
+                        new GanttChart.Panel("Plan (" + planner.name() + ", before disruptions)", plan,
+                                disruptions, Set.of()),
+                        new GanttChart.Panel("Executed with repair '" + r.strategy() + "'", r.schedule(),
+                                disruptions, changedBy(plan, r.schedule())));
+                writer.write("gantt-disrupt-" + r.strategy(), gantt.render(
+                        "Disruptions: plan vs repair '" + r.strategy() + "'", sub, panels, ctx.start(), ctx.end()));
+            }
+            writer.singleRunMetrics("disrupt", subtitle(ctx) + "; plan = before disruptions", metrics);
+            printCharts(writer);
+        }
         printFootnote(ctx);
     }
 
@@ -224,6 +266,13 @@ public final class Main {
         System.out.println();
         System.out.println("All " + (results.plans().size() + results.repairs().size())
                 + " schedules passed validation. Raw rows: " + BENCHMARK_CSV);
+        if (options.charts()) {
+            ChartWriter writer = new ChartWriter(CHARTS);
+            writer.benchmark(results, String.format(Locale.ROOT, "%d scenarios (seeds %d-%d), %d satellites each, %s",
+                    scenarios, firstSeed, firstSeed + scenarios - 1, a.getInt("bench.satellitesPerScenario"),
+                    ctx.station().name()));
+            printCharts(writer);
+        }
         printFootnote(ctx);
     }
 
@@ -247,6 +296,31 @@ public final class Main {
             problems.forEach(p -> System.err.println("INVALID " + name + ": " + p));
             throw new IllegalStateException(name + " produced an invalid schedule");
         }
+    }
+
+    private static GanttChart gantt(Context ctx) {
+        return new GanttChart(ctx.zone(), ctx.assumptions().getInt("metrics.highPriorityMin"));
+    }
+
+    private static String subtitle(Context ctx) {
+        return String.format(Locale.ROOT, "%s, %d antenna(s), %s to %s, %d passes offered",
+                ctx.station().name(), ctx.station().antennas().size(), ctx.start(), ctx.end(), ctx.passes().size());
+    }
+
+    /** Ids of passes in {@code after} that were not planned, or were planned on another antenna. */
+    private static Set<String> changedBy(Schedule plan, Schedule after) {
+        return after.assignments().stream()
+                .filter(a -> {
+                    Optional<Assignment> before = plan.assignmentOf(a.pass());
+                    return before.isEmpty() || !before.get().antenna().equals(a.antenna());
+                })
+                .map(a -> a.pass().id())
+                .collect(Collectors.toSet());
+    }
+
+    private static void printCharts(ChartWriter writer) {
+        System.out.println("Charts written (" + writer.written().size() + "):");
+        writer.written().forEach(p -> System.out.println("  " + p));
     }
 
     private static void printFootnote(Context ctx) {
