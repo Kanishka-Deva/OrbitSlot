@@ -108,10 +108,15 @@ Done in Stage 2 (decisions):
 
 ## Stage 4: Scenarios + benchmark (W5: 16–22 Dec)
 
-- [ ] `ScenarioGenerator`: seed + parameters (number of satellites, antennas, time window, how many passes overlap) gives a reproducible pass list.
-- [ ] `BenchmarkRunner`: runs every registered scheduler on the same N scenarios and prints a comparison table (mean and min/max for each metric). It can also write a CSV so charts can be made later.
-- [ ] **Observer pattern:** a `ScheduleListener` interface with a `ConsoleAlertListener` that is told about conflicts, dropped high-priority passes and, later, cancellations.
-- [ ] Cancellation *events* in the scenario generator (data only for now). The actual repair logic is algorithm 5, which waits until we decide to build it.
+- [x] `ScenarioGenerator`: seed -> a reproducible scenario: the passes of a random subset of satellites (`bench.satellitesPerScenario`) from the real or simulated pass pool, plus seeded disruptions.
+- [x] `BenchmarkRunner`: runs every registered scheduler and every repair strategy on the same N scenarios (`--benchmark`, `--scenarios N`), prints mean [min - max] per metric and writes `results/benchmark.csv`.
+- [x] **Observer pattern:** `ScheduleListener` + `ConsoleAlertListener`, told about disruptions, lost passes (`!!` = high priority) and repairs while `DisruptionSimulator` replays a day. (Dropped passes at planning time are already listed with reasons by the schedule output, so they are not repeated as alerts.)
+- [x] Disruption events: `PassCancellation` (planned pass, announced 15-90 min ahead) and `AntennaOutage` (30-120 min, noticed when it starts). Decided 18 Nov.
+
+Measured on 18 Nov (20 scenarios, seeds 42-61, 100 satellites each, real passes, 2 antennas; all numbers rest on our assumptions file):
+- SA beat Greedy on score in every scenario, by 0.67-3.14 % (mean 1.90 %), and downlinked more data, but missed slightly more high-priority passes (7.5 vs 6.4 on average), because its objective (priority x MB) values big passes.
+- Rolling repair never did worse than no repair; it recovered part of the loss (mean score 180614 vs 177031; high-priority missed 9.0 vs 10.3).
+- Rolling (2 h) reached the same score as a full re-plan in every scenario with slightly fewer plan changes (15.5 vs 15.9), because every generated disruption only affects the next 2 h.
 
 ## Stage 5: Hardening (W6: 23–29 Dec, light week)
 
@@ -126,8 +131,8 @@ Each item is a separate piece of work; we pick what we want and in what order:
 | Extension | Where it plugs in |
 |---|---|
 | 3. Weighted Interval Scheduling (DP) | new `Scheduler` class; optimal only for 1 antenna without extra constraints, so state that clearly |
-| 4. Local Search / Simulated Annealing | new `Scheduler` that starts from the Greedy result |
-| 5. Rolling-horizon / local repair | listens for cancellation events (Observer) and repairs only the affected part of the schedule |
+| 4. Local Search / Simulated Annealing | **done (18 Nov):** `SimulatedAnnealingScheduler` (`--algo sa`), starts from Greedy, maximises priority x MB |
+| 5. Rolling-horizon / local repair | **done (18 Nov):** `RollingHorizonRepair` re-plans [t, t+2 h) after each disruption (`--disrupt`), compared with no repair and full re-plan |
 | Command pattern undo/redo | `ScheduleCommand` (add/remove/move a pass) + history stack |
 | JavaFX Gantt timeline | reads the `Schedule` model; no scheduling logic in the UI |
 | Charts | from the benchmark CSV (JFreeChart, or a spreadsheet) |
