@@ -262,7 +262,6 @@ public final class Main {
             java.awt.image.BufferedImage gantt = planGantt(ctx, panels, ChartWriter.SUMMARY_CONTENT_WIDTH);
 
             ChartWriter writer = new ChartWriter(CHARTS);
-            writer.write("gantt-plan", gantt);
             writer.benchmark(results, String.format(Locale.ROOT, "%d scenarios (seeds %d-%d), %d satellites each, %s",
                     scenarios, firstSeed, firstSeed + scenarios - 1, a.getInt("bench.satellitesPerScenario"),
                     ctx.station().name()), gantt);
