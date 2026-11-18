@@ -14,6 +14,7 @@ public final class Schedule {
 
     private final GroundStation station;
     private final List<Assignment> assignments = new ArrayList<>();
+    private final List<DroppedPass> dropped = new ArrayList<>();
 
     public Schedule(GroundStation station) {
         this.station = station;
@@ -24,6 +25,15 @@ public final class Schedule {
             throw new IllegalArgumentException(assignment.antenna() + " is not part of " + station.name());
         }
         assignments.add(assignment);
+    }
+
+    public void drop(Pass pass, String reason) {
+        dropped.add(new DroppedPass(pass, reason));
+    }
+
+    /** Dropped passes, sorted by AOS. */
+    public List<DroppedPass> dropped() {
+        return dropped.stream().sorted(Comparator.comparing(d -> d.pass().aos())).toList();
     }
 
     public GroundStation station() {

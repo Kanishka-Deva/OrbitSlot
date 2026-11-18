@@ -17,8 +17,12 @@ import java.util.List;
  */
 public final class StationLoader {
 
+    /** Loads the station named by station.id in the assumptions. */
     public GroundStation load(Path csv, Assumptions assumptions) throws IOException {
-        String wantedId = assumptions.getString("station.id");
+        return load(csv, assumptions, assumptions.getString("station.id"));
+    }
+
+    public GroundStation load(Path csv, Assumptions assumptions, String wantedId) throws IOException {
         List<String> lines = Files.readAllLines(csv, StandardCharsets.UTF_8);
 
         for (String line : lines.subList(1, lines.size())) {   // skip header
@@ -38,6 +42,7 @@ public final class StationLoader {
                         Double.parseDouble(f[4].trim()),
                         assumptions.getDouble("station.minElevationDeg"),
                         assumptions.getDouble("station.slewSpeedDegPerSec"),
+                        assumptions.getInt("station.setupSeconds"),
                         antennas(assumptions.getInt("station.antennas")));
             }
         }
