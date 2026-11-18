@@ -28,6 +28,10 @@ if (-not $javac -or -not (Test-Path $javac)) {
     Write-Error "javac not found. Install JDK 21 (e.g. winget install EclipseAdoptium.Temurin.21.JDK) and open a new terminal."
 }
 
+# From here on, error output of javac/java must not abort the script
+# (Windows PowerShell 5.1 turns redirected native stderr into exceptions).
+$ErrorActionPreference = "Continue"
+
 if (Test-Path out) { Remove-Item -Recurse -Force out }
 $src = Get-ChildItem -Recurse src -Filter *.java | ForEach-Object { $_.FullName }
 
