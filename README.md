@@ -16,9 +16,11 @@ algorithms. Java 21, no build tool, console output.
 .\run.ps1 --benchmark --scenarios 5
 .\run.ps1 --help
 .\run.ps1 -Main orbitslot.tools.Predict4JavaCheck   # OMM -> TLE -> predict4java round-trip check
+.\test.ps1                         # compile src + test, run all JUnit 5 tests
 ```
 
-macOS/Linux/Git Bash: `./run.sh` with the same options.
+macOS/Linux/Git Bash: `./run.sh` and `./test.sh` with the same options.
+UML class diagrams: [docs/uml.md](docs/uml.md).
 If PowerShell blocks the script: `powershell -ExecutionPolicy Bypass -File run.ps1`.
 
 ## Input (all in `data/`)

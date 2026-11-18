@@ -10,7 +10,14 @@ import orbitslot.model.Schedule;
  */
 public interface RepairStrategy {
 
+    /** Short name used on the command line and in output, e.g. "rolling". */
     String name();
 
+    /**
+     * @param current the schedule after the disruption's losses were removed
+     *                (may be changed or returned as is)
+     * @param context time of the disruption, passes still available, constraints
+     * @return the schedule to continue with
+     */
     Schedule repair(Schedule current, RepairContext context);
 }

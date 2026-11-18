@@ -9,8 +9,9 @@ import java.util.List;
 
 /**
  * Anything that can produce pass windows for a station over a time window.
- * Stage 1: {@link SimulatedPassSource}. Stage 3: a predict4java-based source.
- * The schedulers only ever see this interface, so the two are interchangeable.
+ * Implementations: {@link SimulatedPassSource} (seeded fake passes) and
+ * {@link Predict4JavaPassSource} (real predicted passes). The schedulers only
+ * ever see passes, never the source, so the two are interchangeable.
  */
 public interface PassSource {
 
