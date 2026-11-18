@@ -16,7 +16,7 @@ import orbitslot.io.PriorityOverridesLoader;
 import orbitslot.io.StationLoader;
 import orbitslot.metrics.Metrics;
 import orbitslot.metrics.MetricsCalculator;
-import orbitslot.model.Assignment;
+import orbitslot.model.Schedule.Assignment;
 import orbitslot.model.Disruption;
 import orbitslot.model.GroundStation;
 import orbitslot.model.Pass;

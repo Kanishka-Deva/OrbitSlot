@@ -2,10 +2,47 @@ package orbitslot.model;
 
 /**
  * A satellite that can be scheduled for contact with a ground station.
- * Subclasses represent the satellite types we model; the numbers for each
- * type (downlink rate, buffer, priority range) come from assumptions.properties.
+ * The nested subclasses are the satellite types we model (sealed: there are
+ * no others); the numbers for each type (downlink rate, buffer, priority
+ * range) come from assumptions.properties.
  */
-public abstract class Satellite {
+public abstract sealed class Satellite {
+
+    /** Earth-observation / weather satellite: high data rate, usually high priority. */
+    public static final class WeatherSat extends Satellite {
+        public WeatherSat(int noradId, String name, int priority, double downlinkKbps, double bufferMB) {
+            super(noradId, name, priority, downlinkKbps, bufferMB);
+        }
+
+        @Override
+        public String typeName() {
+            return "Weather";
+        }
+    }
+
+    /** Communications satellite (our data: the Iridium constellation). */
+    public static final class CommsSat extends Satellite {
+        public CommsSat(int noradId, String name, int priority, double downlinkKbps, double bufferMB) {
+            super(noradId, name, priority, downlinkKbps, bufferMB);
+        }
+
+        @Override
+        public String typeName() {
+            return "Comms";
+        }
+    }
+
+    /** Small satellite, typically a low-rate UHF/VHF downlink and a small buffer. */
+    public static final class CubeSat extends Satellite {
+        public CubeSat(int noradId, String name, int priority, double downlinkKbps, double bufferMB) {
+            super(noradId, name, priority, downlinkKbps, bufferMB);
+        }
+
+        @Override
+        public String typeName() {
+            return "CubeSat";
+        }
+    }
 
     public static final int MIN_PRIORITY = 1;
     public static final int MAX_PRIORITY = 10;

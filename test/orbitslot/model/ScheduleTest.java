@@ -1,5 +1,7 @@
 package orbitslot.model;
 
+import orbitslot.model.Disruption.AntennaOutage;
+import orbitslot.model.Schedule.Assignment;
 import org.junit.jupiter.api.Test;
 
 import static orbitslot.Fixtures.pass;

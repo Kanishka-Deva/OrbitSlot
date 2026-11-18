@@ -1,11 +1,11 @@
 package orbitslot;
 
 import orbitslot.model.Antenna;
-import orbitslot.model.CubeSat;
+import orbitslot.model.Satellite.CubeSat;
 import orbitslot.model.GroundStation;
 import orbitslot.model.Pass;
 import orbitslot.model.Satellite;
-import orbitslot.model.WeatherSat;
+import orbitslot.model.Satellite.WeatherSat;
 
 import java.time.Instant;
 import java.util.ArrayList;

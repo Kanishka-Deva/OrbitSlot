@@ -2,8 +2,8 @@ package orbitslot.output;
 
 import orbitslot.metrics.Metrics;
 import orbitslot.model.Antenna;
-import orbitslot.model.Assignment;
-import orbitslot.model.DroppedPass;
+import orbitslot.model.Schedule.Assignment;
+import orbitslot.model.Schedule.DroppedPass;
 import orbitslot.model.Pass;
 import orbitslot.model.Schedule;
 

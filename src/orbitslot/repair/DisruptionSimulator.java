@@ -5,11 +5,11 @@ import orbitslot.constraint.AntennaOutageConstraint;
 import orbitslot.constraint.Constraint;
 import orbitslot.io.Assumptions;
 import orbitslot.model.Antenna;
-import orbitslot.model.AntennaOutage;
-import orbitslot.model.Assignment;
+import orbitslot.model.Disruption.AntennaOutage;
+import orbitslot.model.Schedule.Assignment;
 import orbitslot.model.Disruption;
 import orbitslot.model.Pass;
-import orbitslot.model.PassCancellation;
+import orbitslot.model.Disruption.PassCancellation;
 import orbitslot.model.Schedule;
 
 import java.time.Duration;

@@ -1,7 +1,7 @@
 package orbitslot.constraint;
 
-import orbitslot.model.AntennaOutage;
-import orbitslot.model.Assignment;
+import orbitslot.model.Disruption.AntennaOutage;
+import orbitslot.model.Schedule.Assignment;
 import orbitslot.model.Schedule;
 
 import java.util.List;

@@ -1,7 +1,7 @@
 package orbitslot.metrics;
 
 import orbitslot.model.Antenna;
-import orbitslot.model.Assignment;
+import orbitslot.model.Schedule.Assignment;
 import orbitslot.model.GroundStation;
 import orbitslot.model.Pass;
 import orbitslot.model.Schedule;

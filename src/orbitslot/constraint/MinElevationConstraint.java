@@ -1,6 +1,6 @@
 package orbitslot.constraint;
 
-import orbitslot.model.Assignment;
+import orbitslot.model.Schedule.Assignment;
 import orbitslot.model.Schedule;
 
 import java.util.Locale;

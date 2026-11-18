@@ -1,9 +1,9 @@
 package orbitslot.alert;
 
-import orbitslot.model.AntennaOutage;
+import orbitslot.model.Disruption.AntennaOutage;
 import orbitslot.model.Disruption;
 import orbitslot.model.Pass;
-import orbitslot.model.PassCancellation;
+import orbitslot.model.Disruption.PassCancellation;
 
 import java.io.PrintStream;
 import java.time.Instant;
