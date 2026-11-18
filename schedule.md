@@ -134,8 +134,8 @@ Each item is a separate piece of work; we pick what we want and in what order:
 | 4. Local Search / Simulated Annealing | **done (18 Nov):** `SimulatedAnnealingScheduler` (`--algo sa`), starts from Greedy, maximises priority x MB |
 | 5. Rolling-horizon / local repair | **done (18 Nov):** `RollingHorizonRepair` re-plans [t, t+2 h) after each disruption (`--disrupt`), compared with no repair and full re-plan |
 | Command pattern undo/redo | `ScheduleCommand` (add/remove/move a pass) + history stack |
-| JavaFX Gantt timeline | reads the `Schedule` model; no scheduling logic in the UI |
-| Charts | from the benchmark CSV (JFreeChart, or a spreadsheet) |
+| JavaFX Gantt timeline | **Gantt done as PNG (18 Nov):** `GanttChart` (plain Java2D, decided instead of JavaFX/JFreeChart: no new jars, images go straight into the report). Plan per algorithm + all stacked, and plan vs executed after disruptions. Reads the `Schedule` model only. An interactive JavaFX view is still open. |
+| Charts | **done (18 Nov):** `--charts` writes bar charts per metric (mean + min-max over scenarios), run time, repair stability and per-scenario score gain over FCFS to `results/charts/`, from the same results as `benchmark.csv`. Checked against the console tables and the CSV; `ChartTest` checks pixel positions. |
 | Stretch | multiple stations, fairness between operators, OR-Tools comparison |
 
 The program has to keep working after every extension. If it doesn't by the end of W7, we drop that extension.
