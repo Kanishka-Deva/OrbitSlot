@@ -1,0 +1,15 @@
+# compiled classes
+out/
+*.class
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS clutter
+Thumbs.db
+.DS_Store
