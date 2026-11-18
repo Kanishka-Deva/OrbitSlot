@@ -6,7 +6,7 @@ public record CliOptions(String source, String algo, String station, boolean sho
 
     public static final String USAGE = """
             Usage: run.ps1 [options]
-              --source sim             simulated passes (default; real data comes in Stage 3)
+              --source celestrak|sim   real predicted passes (default) or simulated ones
               --algo fcfs|greedy|all   which scheduler(s) to run (default all)
               --station ID             station id from data/stations.csv (default from assumptions)
               --passes                 also print the input pass list
@@ -14,7 +14,7 @@ public record CliOptions(String source, String algo, String station, boolean sho
               --help                   show this text""";
 
     public static CliOptions parse(String[] args) {
-        String source = "sim";
+        String source = "celestrak";
         String algo = "all";
         String station = null;
         boolean showPasses = false, showAll = false, help = false;
@@ -30,8 +30,8 @@ public record CliOptions(String source, String algo, String station, boolean sho
                 default -> throw new IllegalArgumentException("Unknown option: " + args[i]);
             }
         }
-        if (!source.equals("sim")) {
-            throw new IllegalArgumentException("--source must be sim, got " + source);
+        if (!source.equals("celestrak") && !source.equals("sim")) {
+            throw new IllegalArgumentException("--source must be celestrak or sim, got " + source);
         }
         return new CliOptions(source, algo, station, showPasses, showAll, help);
     }
