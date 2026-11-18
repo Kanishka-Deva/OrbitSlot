@@ -32,7 +32,6 @@ import orbitslot.repair.RepairStrategy;
 import orbitslot.repair.RollingHorizonRepair;
 import orbitslot.scenario.PassSource;
 import orbitslot.scenario.Predict4JavaPassSource;
-import orbitslot.scenario.ScenarioGenerator;
 import orbitslot.scenario.SimulatedPassSource;
 import orbitslot.scheduler.ScheduleValidator;
 import orbitslot.scheduler.Scheduler;
@@ -178,12 +177,11 @@ public final class Main {
         requireValid(planner.name(), validator.validate(plan, ctx.passes()));
 
         long seed = ctx.assumptions().getLong("random.seed");
-        List<Disruption> disruptions = new ScenarioGenerator(ctx.assumptions())
-                .disruptions(plan, ctx.start(), ctx.end(), seed);
+        DisruptionSimulator simulator = new DisruptionSimulator(ctx.constraints());
+        List<Disruption> disruptions = simulator.generate(plan, ctx.start(), ctx.end(), seed, ctx.assumptions());
         System.out.println("Plan made with '" + planner.name() + "'; " + disruptions.size()
                 + " seeded disruptions (seed " + seed + ").");
 
-        DisruptionSimulator simulator = new DisruptionSimulator(ctx.constraints());
         simulator.addListener(new ConsoleAlertListener(ctx.zone(),
                 ctx.assumptions().getInt("metrics.highPriorityMin"), System.out));
 
@@ -243,7 +241,7 @@ public final class Main {
                 scenarios, firstSeed, firstSeed + scenarios - 1, a.getInt("bench.satellitesPerScenario"),
                 planner.name());
 
-        BenchmarkRunner runner = new BenchmarkRunner(new ScenarioGenerator(a), ctx.calculator(),
+        BenchmarkRunner runner = new BenchmarkRunner(a, ctx.calculator(),
                 new DisruptionSimulator(ctx.constraints()));
         BenchmarkRunner.Results results = runner.run(ctx.passes(), ctx.station(), ctx.start(), ctx.end(),
                 scenarios, firstSeed, schedulers, planner, repairs);

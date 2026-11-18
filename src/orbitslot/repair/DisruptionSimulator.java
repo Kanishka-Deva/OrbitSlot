@@ -3,6 +3,8 @@ package orbitslot.repair;
 import orbitslot.alert.ScheduleListener;
 import orbitslot.constraint.AntennaOutageConstraint;
 import orbitslot.constraint.Constraint;
+import orbitslot.io.Assumptions;
+import orbitslot.model.Antenna;
 import orbitslot.model.AntennaOutage;
 import orbitslot.model.Assignment;
 import orbitslot.model.Disruption;
@@ -10,17 +12,28 @@ import orbitslot.model.Pass;
 import orbitslot.model.PassCancellation;
 import orbitslot.model.Schedule;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 
 /**
- * Plays disruptions against a plan in the order they become known.
- * For each one it removes the passes that can no longer be tracked, tells the
- * listeners (Observer pattern), and lets the repair strategy fix the future.
+ * The disruption simulation, in two steps:
+ * <ol>
+ *   <li>{@link #generate}: seeded disruptions for a plan - cancellations of
+ *       planned passes (announced some minutes before AOS) and antenna outages
+ *       (noticed when they start). The same seed always gives the same list.</li>
+ *   <li>{@link #run}: plays them against the plan in the order they become
+ *       known. For each one it removes the passes that can no longer be
+ *       tracked, tells the listeners (Observer pattern), and lets the repair
+ *       strategy fix the future.</li>
+ * </ol>
  */
 public final class DisruptionSimulator {
 
@@ -33,6 +46,44 @@ public final class DisruptionSimulator {
 
     public void addListener(ScheduleListener listener) {
         listeners.add(listener);
+    }
+
+    /**
+     * Seeded disruptions for a plan over [start, end), sorted by announcement time.
+     * Rates and ranges come from the disrupt.* keys in assumptions.properties.
+     */
+    public List<Disruption> generate(Schedule plan, Instant start, Instant end, long seed, Assumptions a) {
+        int noticeMin = a.getInt("disrupt.noticeMinMinutes");
+        int noticeMax = a.getInt("disrupt.noticeMaxMinutes");
+        int outageMin = a.getInt("disrupt.outageMinMinutes");
+        int outageMax = a.getInt("disrupt.outageMaxMinutes");
+        if (outageMax < outageMin || noticeMax < noticeMin) {
+            throw new IllegalStateException("Bad disruption ranges in assumptions.properties");
+        }
+        Random rnd = new Random(seed * 31 + 7);
+        double days = Duration.between(start, end).toMinutes() / 1440.0;
+        List<Disruption> result = new ArrayList<>();
+
+        List<Assignment> planned = new ArrayList<>(plan.assignments());
+        planned.sort(Comparator.comparing((Assignment x) -> x.pass().id()));
+        Collections.shuffle(planned, rnd);
+        int cancellations = Math.min(planned.size(),
+                (int) Math.round(a.getDouble("disrupt.cancellationsPerDay") * days));
+        for (Assignment x : planned.subList(0, cancellations)) {
+            Instant notice = x.pass().aos().minus(Duration.ofMinutes(between(rnd, noticeMin, noticeMax)));
+            result.add(new PassCancellation(x.pass(), notice.isBefore(start) ? start : notice));
+        }
+
+        List<Antenna> antennas = plan.station().antennas();
+        long latestStartMinutes = Math.max(0, Duration.between(start, end).toMinutes() - outageMax);
+        int outages = (int) Math.round(a.getDouble("disrupt.outagesPerDay") * days);
+        for (int i = 0; i < outages; i++) {
+            Instant from = start.plus(Duration.ofMinutes(between(rnd, 0, (int) latestStartMinutes)));
+            Instant to = from.plus(Duration.ofMinutes(between(rnd, outageMin, outageMax)));
+            result.add(new AntennaOutage(antennas.get(rnd.nextInt(antennas.size())), from, to));
+        }
+        result.sort(Comparator.comparing(Disruption::announcedAt));
+        return result;
     }
 
     public DisruptionResult run(Schedule plan, List<Pass> allPasses, List<Disruption> disruptions,
@@ -112,5 +163,9 @@ public final class DisruptionSimulator {
         Set<String> d = new HashSet<>(a);
         d.removeAll(b);
         return d;
+    }
+
+    private static int between(Random rnd, int min, int max) {
+        return min + rnd.nextInt(max - min + 1);
     }
 }
