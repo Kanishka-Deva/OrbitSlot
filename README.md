@@ -50,11 +50,12 @@ forced losses and plan changes (stability). `--benchmark` prints mean
 
 | Mode | Files |
 |---|---|
-| plan | `gantt-<algo>.png` (antennas x time, passes coloured by satellite type, missed high-priority passes), `gantt-compare.png` (all algorithms stacked), `plan-<metric>.png` |
-| `--disrupt` | `gantt-disrupt-<repair>.png` (plan vs executed: outages hatched, cancellations crossed, repair changes outlined), `disrupt-<metric>.png` |
-| `--benchmark` | `bench-plan-<metric>.png` and `bench-repair-<metric>.png` (mean bar, min-max whisker), `bench-plan-runtime.png`, `bench-plan-score-gain.png` (gain over FCFS per scenario) |
+| plan | `gantt-plan.png`: one full-day timeline per algorithm (antennas x time, passes coloured by satellite type, missed high-priority passes) |
+| `--disrupt` | `gantt-disrupt.png`: the plan, then what was executed with each repair (outages hatched, cancellations crossed, repair changes outlined) |
+| `--benchmark` | **`summary.png`** (everything below on one sheet) plus each chart on its own: `bench-score`, `bench-data` (% of offered data), `bench-high-prio-missed`, `bench-runtime`, `bench-repair-score`, `bench-repair-changes` (bar = mean, whisker = min-max over scenarios), `bench-score-gain` (gain over FCFS per scenario) and `gantt-plan` |
 
-Metrics charted: score, data MB, data %, high-priority missed, passes scheduled, antenna use; for repairs also plan changes.
+Every chart compares algorithms (or repair strategies); each keeps its colour in all charts.
+Run time is wall-clock and varies a little between runs; all other numbers are deterministic.
 
 ## Algorithms
 

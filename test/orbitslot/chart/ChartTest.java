@@ -53,7 +53,7 @@ class ChartTest {
         int firstQuarter = (int) (150 + 0.25 * plotWidth);
         int thirdQuarter = (int) (150 + 0.75 * plotWidth);
 
-        assertEquals(Canvas.series(0).getRGB(), img.getRGB(firstQuarter, 159), "weather pass on ANT-1");
+        assertEquals(Canvas.series(6).getRGB(), img.getRGB(firstQuarter, 159), "weather pass on ANT-1");
         assertEquals(Canvas.SURFACE.getRGB(), img.getRGB(thirdQuarter, 159), "nothing planned in hour 2");
         assertEquals(Canvas.CRITICAL.getRGB(), img.getRGB(thirdQuarter, 191), "missed prio-9 pass");
         assertEquals(Canvas.SURFACE.getRGB(), img.getRGB(firstQuarter, 191), "nothing missed in hour 1");
@@ -67,7 +67,7 @@ class ChartTest {
         boolean hatched = false;
         for (int dx = 0; dx < 8; dx++) {
             int rgb = img.getRGB(x + dx, 159);
-            assertNotEquals(Canvas.series(0).getRGB(), rgb);
+            assertNotEquals(Canvas.series(6).getRGB(), rgb);
             hatched |= rgb != Canvas.SURFACE.getRGB();
         }
         assertEquals(true, hatched);
