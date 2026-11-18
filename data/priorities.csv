@@ -1,0 +1,5 @@
+norad_id,priority,note
+# Optional per-satellite overrides (1-10). Satellites not listed get a seeded
+# priority inside their type's range from assumptions.properties.
+# Lines starting with # are ignored. Example:
+# 28054,10,DMSP F16 treated as critical for the demo
