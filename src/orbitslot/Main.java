@@ -16,15 +16,13 @@ import orbitslot.io.PriorityOverridesLoader;
 import orbitslot.io.StationLoader;
 import orbitslot.metrics.Metrics;
 import orbitslot.metrics.MetricsCalculator;
-import orbitslot.model.Assignment;
+import orbitslot.model.Schedule.Assignment;
 import orbitslot.model.Disruption;
 import orbitslot.model.GroundStation;
 import orbitslot.model.Pass;
 import orbitslot.model.Schedule;
 import orbitslot.output.BenchmarkPrinter;
-import orbitslot.output.MetricsTablePrinter;
-import orbitslot.output.PassTablePrinter;
-import orbitslot.output.SchedulePrinter;
+import orbitslot.output.ConsolePrinter;
 import orbitslot.repair.DisruptionResult;
 import orbitslot.repair.DisruptionSimulator;
 import orbitslot.repair.NoRepair;
@@ -32,7 +30,6 @@ import orbitslot.repair.RepairStrategy;
 import orbitslot.repair.RollingHorizonRepair;
 import orbitslot.scenario.PassSource;
 import orbitslot.scenario.Predict4JavaPassSource;
-import orbitslot.scenario.ScenarioGenerator;
 import orbitslot.scenario.SimulatedPassSource;
 import orbitslot.scheduler.ScheduleValidator;
 import orbitslot.scheduler.Scheduler;
@@ -66,7 +63,7 @@ public final class Main {
     /** Everything the modes share. */
     private record Context(Assumptions assumptions, GroundStation station, Instant start, Instant end,
                            List<Pass> passes, List<Constraint> constraints, MetricsCalculator calculator,
-                           ZoneId zone, int rowLimit) { }
+                           ZoneId zone, ConsolePrinter printer) { }
 
     public static void main(String[] args) {
         System.setProperty("java.awt.headless", "true");   // charts are drawn off-screen
@@ -126,7 +123,7 @@ public final class Main {
         List<Pass> passes = source.passes(catalog.satellites(), station, start, end);
 
         ZoneId zone = assumptions.getZone("display.timezone");
-        int rowLimit = options.showAll() ? 0 : DEFAULT_ROW_LIMIT;
+        ConsolePrinter printer = new ConsolePrinter(zone, options.showAll() ? 0 : DEFAULT_ROW_LIMIT, System.out);
 
         System.out.println("OrbitSlot - satellite pass scheduler (" + options.mode() + ")");
         System.out.println("Station   : " + station);
@@ -137,18 +134,17 @@ public final class Main {
                 + overrides.size() + " priority override(s)");
         System.out.println();
         if (options.showPasses()) {
-            new PassTablePrinter(zone).print(passes, rowLimit, System.out);
+            printer.printPasses(passes);
             System.out.println();
         }
         MetricsCalculator calculator = new MetricsCalculator(assumptions.getInt("metrics.highPriorityMin"));
-        return new Context(assumptions, station, start, end, passes, constraints, calculator, zone, rowLimit);
+        return new Context(assumptions, station, start, end, passes, constraints, calculator, zone, printer);
     }
 
     // --- plan ----------------------------------------------------------------
 
     private static void runPlan(Context ctx, List<Scheduler> schedulers, boolean charts) throws IOException {
         ScheduleValidator validator = new ScheduleValidator();
-        SchedulePrinter printer = new SchedulePrinter(ctx.zone(), ctx.rowLimit());
         List<Metrics> results = new ArrayList<>();
         List<GanttChart.Panel> panels = new ArrayList<>();
 
@@ -156,10 +152,10 @@ public final class Main {
             Schedule schedule = scheduler.schedule(ctx.passes(), ctx.station());
             panels.add(new GanttChart.Panel(scheduler.name(), schedule));
             requireValid(scheduler.name(), validator.validate(schedule, ctx.passes()));
-            printer.print(scheduler.name(), schedule, ctx.start(), ctx.end(), System.out);
+            ctx.printer().printSchedule(scheduler.name(), schedule, ctx.start(), ctx.end());
             results.add(ctx.calculator().calculate(scheduler.name(), ctx.passes(), schedule, ctx.start(), ctx.end()));
         }
-        new MetricsTablePrinter().print("Metrics", results, System.out);
+        ctx.printer().printMetrics("Metrics", results);
         System.out.println("All schedules passed validation (no overlaps, turnaround respected).");
         if (charts) {
             ChartWriter writer = new ChartWriter(CHARTS);
@@ -178,12 +174,11 @@ public final class Main {
         requireValid(planner.name(), validator.validate(plan, ctx.passes()));
 
         long seed = ctx.assumptions().getLong("random.seed");
-        List<Disruption> disruptions = new ScenarioGenerator(ctx.assumptions())
-                .disruptions(plan, ctx.start(), ctx.end(), seed);
+        DisruptionSimulator simulator = new DisruptionSimulator(ctx.constraints());
+        List<Disruption> disruptions = simulator.generate(plan, ctx.start(), ctx.end(), seed, ctx.assumptions());
         System.out.println("Plan made with '" + planner.name() + "'; " + disruptions.size()
                 + " seeded disruptions (seed " + seed + ").");
 
-        DisruptionSimulator simulator = new DisruptionSimulator(ctx.constraints());
         simulator.addListener(new ConsoleAlertListener(ctx.zone(),
                 ctx.assumptions().getInt("metrics.highPriorityMin"), System.out));
 
@@ -200,13 +195,12 @@ public final class Main {
         }
         if (repairs.size() == 1) {
             System.out.println();
-            new SchedulePrinter(ctx.zone(), ctx.rowLimit())
-                    .print("after repair '" + repairs.get(0).name() + "'", results.get(0).schedule(),
-                            ctx.start(), ctx.end(), System.out);
+            ctx.printer().printSchedule("after repair '" + repairs.get(0).name() + "'", results.get(0).schedule(),
+                    ctx.start(), ctx.end());
         }
 
         System.out.println();
-        new MetricsTablePrinter().print("Metrics (plan = before disruptions)", metrics, System.out);
+        ctx.printer().printMetrics("Metrics (plan = before disruptions)", metrics);
         System.out.println();
         System.out.printf("%-10s  %13s  %12s%n", "Repair", "Forced losses", "Plan changes");
         for (DisruptionResult r : results) {
@@ -243,7 +237,7 @@ public final class Main {
                 scenarios, firstSeed, firstSeed + scenarios - 1, a.getInt("bench.satellitesPerScenario"),
                 planner.name());
 
-        BenchmarkRunner runner = new BenchmarkRunner(new ScenarioGenerator(a), ctx.calculator(),
+        BenchmarkRunner runner = new BenchmarkRunner(a, ctx.calculator(),
                 new DisruptionSimulator(ctx.constraints()));
         BenchmarkRunner.Results results = runner.run(ctx.passes(), ctx.station(), ctx.start(), ctx.end(),
                 scenarios, firstSeed, schedulers, planner, repairs);
@@ -268,7 +262,6 @@ public final class Main {
             java.awt.image.BufferedImage gantt = planGantt(ctx, panels, ChartWriter.SUMMARY_CONTENT_WIDTH);
 
             ChartWriter writer = new ChartWriter(CHARTS);
-            writer.write("gantt-plan", gantt);
             writer.benchmark(results, String.format(Locale.ROOT, "%d scenarios (seeds %d-%d), %d satellites each, %s",
                     scenarios, firstSeed, firstSeed + scenarios - 1, a.getInt("bench.satellitesPerScenario"),
                     ctx.station().name()), gantt);

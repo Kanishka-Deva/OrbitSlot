@@ -3,7 +3,6 @@
 # Usage:
 #   .\run.ps1                                   runs orbitslot.Main
 #   .\run.ps1 some args                         passes args to orbitslot.Main
-#   .\run.ps1 -Main orbitslot.tools.Predict4JavaCheck
 #
 # If PowerShell blocks the script, run:
 #   powershell -ExecutionPolicy Bypass -File run.ps1

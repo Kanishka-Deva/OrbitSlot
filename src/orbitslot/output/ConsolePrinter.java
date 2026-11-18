@@ -1,8 +1,9 @@
 package orbitslot.output;
 
+import orbitslot.metrics.Metrics;
 import orbitslot.model.Antenna;
-import orbitslot.model.Assignment;
-import orbitslot.model.DroppedPass;
+import orbitslot.model.Schedule.Assignment;
+import orbitslot.model.Schedule.DroppedPass;
 import orbitslot.model.Pass;
 import orbitslot.model.Schedule;
 
@@ -15,39 +16,79 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Console view of one schedule: a table per antenna, an ASCII timeline per
- * antenna, and the dropped passes with their reasons.
+ * All fixed-width console tables: the input pass list, one schedule (a table
+ * and an ASCII timeline per antenna, plus the dropped passes with their
+ * reasons), and metrics of several schedules side by side.
  */
-public final class SchedulePrinter {
+public final class ConsolePrinter {
 
     private static final int TIMELINE_WIDTH = 96;
-    private static final String ROW = "  %-19s  %-8s  %5s  %-24s  %-7s  %4s  %9s%n";
+    private static final String PASS_ROW = "%4s  %-19s  %-8s  %5s  %-24s  %-7s  %4s  %5s  %7s  %9s%n";
+    private static final String SCHEDULE_ROW = "  %-19s  %-8s  %5s  %-24s  %-7s  %4s  %9s%n";
+    private static final String METRICS_ROW = "%-10s  %11s  %7s  %10s  %7s  %9s  %11s  %16s%n";
 
     private final DateTimeFormatter timeFormat;
     private final DateTimeFormatter shortTime;
     private final String zoneLabel;
     private final int rowLimit;
+    private final PrintStream out;
 
     /** @param rowLimit maximum rows per list; 0 or less means all */
-    public SchedulePrinter(ZoneId zone, int rowLimit) {
+    public ConsolePrinter(ZoneId zone, int rowLimit, PrintStream out) {
         this.timeFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(zone);
         this.shortTime = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(zone);
         this.zoneLabel = zone.getId();
         this.rowLimit = rowLimit;
+        this.out = out;
     }
 
-    public void print(String algorithm, Schedule schedule, Instant start, Instant end, PrintStream out) {
-        out.println("=== Schedule: " + algorithm + " ===");
+    // --- input passes ----------------------------------------------------------
+
+    public void printPasses(List<Pass> passes) {
+        out.printf(PASS_ROW, "#", "AOS (" + zoneLabel + ")", "LOS", "min", "Satellite", "Type",
+                "Prio", "MaxEl", "Az", "Data MB");
+        out.println("-".repeat(112));
+
+        int shown = limit(passes.size());
+        for (int i = 0; i < shown; i++) {
+            Pass p = passes.get(i);
+            out.printf(Locale.ROOT, PASS_ROW,
+                    i + 1,
+                    timeFormat.format(p.aos()),
+                    shortTime.format(p.los()),
+                    minutes(p),
+                    truncate(p.satellite().name(), 24),
+                    p.satellite().typeName(),
+                    p.satellite().priority(),
+                    String.format(Locale.ROOT, "%.1f", p.maxElevationDeg()),
+                    String.format(Locale.ROOT, "%03.0f>%03.0f", p.aosAzimuthDeg(), p.losAzimuthDeg()),
+                    String.format(Locale.ROOT, "%.2f", p.dataVolumeMB()));
+        }
+        more(passes.size() - shown, "passes");
+    }
+
+    // --- one schedule ----------------------------------------------------------
+
+    public void printSchedule(String title, Schedule schedule, Instant start, Instant end) {
+        out.println("=== Schedule: " + title + " ===");
         for (Antenna antenna : schedule.station().antennas()) {
             List<Assignment> list = schedule.assignmentsFor(antenna);
             out.println();
             out.println(antenna + " - " + list.size() + " passes");
-            out.printf(ROW, "AOS (" + zoneLabel + ")", "LOS", "min", "Satellite", "Type", "Prio", "Data MB");
+            out.printf(SCHEDULE_ROW, "AOS (" + zoneLabel + ")", "LOS", "min", "Satellite", "Type", "Prio", "Data MB");
             int shown = limit(list.size());
             for (int i = 0; i < shown; i++) {
-                printRow(list.get(i).pass(), out);
+                Pass p = list.get(i).pass();
+                out.printf(Locale.ROOT, SCHEDULE_ROW,
+                        timeFormat.format(p.aos()),
+                        shortTime.format(p.los()),
+                        minutes(p),
+                        truncate(p.satellite().name(), 24),
+                        p.satellite().typeName(),
+                        p.satellite().priority(),
+                        String.format(Locale.ROOT, "%.2f", p.dataVolumeMB()));
             }
-            more(list.size() - shown, "passes", out);
+            more(list.size() - shown, "passes");
         }
 
         out.println();
@@ -67,20 +108,30 @@ public final class SchedulePrinter {
             out.printf(Locale.ROOT, "  %s  %-24s  prio %2d  %s%n", timeFormat.format(d.pass().aos()),
                     truncate(d.pass().satellite().name(), 24), d.pass().satellite().priority(), d.reason());
         }
-        more(dropped.size() - shown, "dropped passes", out);
+        more(dropped.size() - shown, "dropped passes");
         out.println();
     }
 
-    private void printRow(Pass p, PrintStream out) {
-        out.printf(Locale.ROOT, ROW,
-                timeFormat.format(p.aos()),
-                shortTime.format(p.los()),
-                String.format(Locale.ROOT, "%.1f", p.duration().toSeconds() / 60.0),
-                truncate(p.satellite().name(), 24),
-                p.satellite().typeName(),
-                p.satellite().priority(),
-                String.format(Locale.ROOT, "%.2f", p.dataVolumeMB()));
+    // --- metrics ---------------------------------------------------------------
+
+    public void printMetrics(String title, List<Metrics> rows) {
+        out.println("=== " + title + " ===");
+        out.printf(METRICS_ROW, "Name", "Scheduled", "Dropped", "Data MB", "Data %", "Ant. use%", "Score",
+                "High-prio missed");
+        for (Metrics m : rows) {
+            out.printf(Locale.ROOT, METRICS_ROW,
+                    m.algorithm(),
+                    m.scheduledPasses() + "/" + m.totalPasses(),
+                    m.droppedPasses(),
+                    String.format(Locale.ROOT, "%.1f", m.downlinkedMB()),
+                    String.format(Locale.ROOT, "%.1f", m.downlinkedPct()),
+                    String.format(Locale.ROOT, "%.1f", m.antennaUtilisationPct()),
+                    String.format(Locale.ROOT, "%.0f", m.score()),
+                    m.highPriorityMissed() + " / " + m.highPriorityPasses());
+        }
     }
+
+    // --- helpers ---------------------------------------------------------------
 
     /** One character per time slice; '#' if any tracked pass touches it. */
     private static String timeline(List<Assignment> list, Instant start, Instant end) {
@@ -118,10 +169,14 @@ public final class SchedulePrinter {
         return rowLimit > 0 ? Math.min(rowLimit, size) : size;
     }
 
-    private static void more(int hidden, String what, PrintStream out) {
+    private void more(int hidden, String what) {
         if (hidden > 0) {
             out.printf("  ... %d more %s (use --all to show everything)%n", hidden, what);
         }
+    }
+
+    private static String minutes(Pass p) {
+        return String.format(Locale.ROOT, "%.1f", p.duration().toSeconds() / 60.0);
     }
 
     private static String truncate(String s, int max) {

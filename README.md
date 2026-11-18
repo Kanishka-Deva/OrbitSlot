@@ -16,7 +16,6 @@ algorithms. Java 21, no build tool, console output.
 .\run.ps1 --benchmark --scenarios 5
 .\run.ps1 --charts                 # any mode: also write PNG charts + Gantt timelines to results/charts/
 .\run.ps1 --help
-.\run.ps1 -Main orbitslot.tools.Predict4JavaCheck   # OMM -> TLE -> predict4java round-trip check
 .\test.ps1                         # compile src + test, run all JUnit 5 tests
 ```
 
@@ -52,7 +51,7 @@ forced losses and plan changes (stability). `--benchmark` prints mean
 |---|---|
 | plan | `gantt-plan.png`: one full-day timeline per algorithm (antennas x time, passes coloured by satellite type, missed high-priority passes) |
 | `--disrupt` | `gantt-disrupt.png`: the plan, then what was executed with each repair (outages hatched, cancellations crossed, repair changes outlined) |
-| `--benchmark` | **`summary.png`** (everything below on one sheet) plus each chart on its own: `bench-score`, `bench-data` (% of offered data), `bench-high-prio-missed`, `bench-runtime`, `bench-repair-score`, `bench-repair-changes` (bar = mean, whisker = min-max over scenarios), `bench-score-gain` (gain over FCFS per scenario) and `gantt-plan` |
+| `--benchmark` | `summary.png` only: one sheet with score, % of offered data, high-priority passes missed, run time, repair score and repair plan changes (bar = mean, whisker = min-max over scenarios), score gain over FCFS per scenario, and the full-day Gantt of every algorithm |
 
 Every chart compares algorithms (or repair strategies); each keeps its colour in all charts.
 Run time is wall-clock and varies a little between runs; all other numbers are deterministic.
@@ -82,14 +81,14 @@ not modelled yet. Only LEO satellites that fit the TLE format are used.
 
 | Package | Role |
 |---|---|
-| `model` | Satellite hierarchy, GroundStation, Antenna, Pass, Assignment, Schedule |
+| `model` | Sealed Satellite hierarchy (types nested), GroundStation, Antenna, Pass, Schedule (with nested Assignment, DroppedPass), sealed Disruption (with nested PassCancellation, AntennaOutage) |
 | `io` | Loading assumptions, stations, priorities, OMM JSON; OMM to TLE conversion |
 | `catalog` | SatelliteFactory, PriorityAssigner, SatelliteCatalog (LEO filter) |
-| `scenario` | `PassSource` interface: `Predict4JavaPassSource`, `SimulatedPassSource`; `ScenarioGenerator` |
+| `scenario` | `PassSource` interface: `Predict4JavaPassSource`, `SimulatedPassSource` |
 | `constraint` | `Constraint` interface: min elevation, slew + setup, antenna outage |
 | `scheduler` | `Scheduler` interface (Strategy), FCFS, Greedy (Template Method), SA, registry, validator |
-| `repair` | `RepairStrategy` (Strategy): none, rolling horizon; `DisruptionSimulator` |
+| `repair` | `RepairStrategy` (Strategy): none, rolling horizon; `DisruptionSimulator` (generates and replays the seeded disruptions) |
 | `alert` | `ScheduleListener` (Observer), `ConsoleAlertListener` |
 | `benchmark` | `BenchmarkRunner` |
-| `metrics`, `output` | Metrics, console tables, CSV |
+| `metrics`, `output` | Metrics, `ConsolePrinter` (all console tables), `BenchmarkPrinter` (benchmark tables + CSV) |
 | `chart` | `GanttChart`, `BarChart`, `GroupedBarChart` (Java2D to PNG), `ChartWriter`; read the model only |

@@ -20,9 +20,9 @@ import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
 
 /**
- * Writes the comparison charts as PNG files into one folder, plus a summary
- * sheet that puts them all on one image. Only charts that compare algorithms
- * (or repair strategies) with each other are made.
+ * Writes charts as PNG files into one folder. The benchmark charts go onto a
+ * single summary sheet. Only charts that compare algorithms (or repair
+ * strategies) with each other are made.
  * Each algorithm / repair keeps the same colour in every chart.
  */
 public final class ChartWriter {
@@ -52,8 +52,8 @@ public final class ChartWriter {
     }
 
     /**
-     * The benchmark charts (one PNG each) and {@code summary.png}, which puts
-     * them in a grid with the given Gantt timeline at the bottom.
+     * Writes {@code summary.png}: all benchmark charts on one sheet, in a grid,
+     * with the given Gantt timeline at the bottom. No separate chart files.
      *
      * @param gantt full-day schedules of all algorithms, or null to leave it out
      */
@@ -65,28 +65,21 @@ public final class ChartWriter {
         List<Integer> repairSlots = slots(repairs.keySet());
         String repairSub = "Disruptions replayed on the greedy plan; same disruptions for every repair";
 
-        Map<String, BufferedImage> grid = new LinkedHashMap<>();
-        grid.put("bench-score", bar.render("Score (priority x MB, higher is better)", subtitle, "score",
-                bars(plans, r -> r.metrics().score()), "%.0f", planSlots));
-        grid.put("bench-data", bar.render("Share of offered data downlinked", subtitle, "%",
-                bars(plans, r -> r.metrics().downlinkedPct()), "%.1f", planSlots));
-        grid.put("bench-high-prio-missed", bar.render("High-priority passes missed (lower is better)", subtitle,
-                "passes", bars(plans, r -> r.metrics().highPriorityMissed()), "%.1f", planSlots));
-        grid.put("bench-runtime", bar.render("Run time per scenario", subtitle, "ms",
-                bars(plans, r -> r.runtimeMs()), "%.0f", planSlots));
-        grid.put("bench-repair-score", bar.render("Repair: score after disruptions", repairSub, "score",
-                bars(repairs, r -> r.metrics().score()), "%.0f", repairSlots));
-        grid.put("bench-repair-changes", bar.render("Repair: plan changes (lower = more stable)", repairSub,
-                "changes", bars(repairs, r -> r.planChanges()), "%.1f", repairSlots));
-        BufferedImage gain = scoreGainPerScenario(plans, subtitle);
+        List<BufferedImage> grid = List.of(
+                bar.render("Score (priority x MB, higher is better)", subtitle, "score",
+                        bars(plans, r -> r.metrics().score()), "%.0f", planSlots),
+                bar.render("Share of offered data downlinked", subtitle, "%",
+                        bars(plans, r -> r.metrics().downlinkedPct()), "%.1f", planSlots),
+                bar.render("High-priority passes missed (lower is better)", subtitle, "passes",
+                        bars(plans, r -> r.metrics().highPriorityMissed()), "%.1f", planSlots),
+                bar.render("Run time per scenario", subtitle, "ms",
+                        bars(plans, r -> r.runtimeMs()), "%.0f", planSlots),
+                bar.render("Repair: score after disruptions", repairSub, "score",
+                        bars(repairs, r -> r.metrics().score()), "%.0f", repairSlots),
+                bar.render("Repair: plan changes (lower = more stable)", repairSub, "changes",
+                        bars(repairs, r -> r.planChanges()), "%.1f", repairSlots));
 
-        for (Map.Entry<String, BufferedImage> e : grid.entrySet()) {
-            write(e.getKey(), e.getValue());
-        }
-        if (gain != null) {
-            write("bench-score-gain", gain);
-        }
-        write("summary", summary(subtitle, new ArrayList<>(grid.values()), gain, gantt));
+        write("summary", summary(subtitle, grid, scoreGainPerScenario(plans, subtitle), gantt));
     }
 
     /** Header, the bar charts in rows of three, then the wide charts below each other. */

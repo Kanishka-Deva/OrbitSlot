@@ -1,12 +1,12 @@
 package orbitslot.chart;
 
 import orbitslot.model.Antenna;
-import orbitslot.model.AntennaOutage;
-import orbitslot.model.Assignment;
+import orbitslot.model.Disruption.AntennaOutage;
+import orbitslot.model.Schedule.Assignment;
 import orbitslot.model.Disruption;
-import orbitslot.model.DroppedPass;
+import orbitslot.model.Schedule.DroppedPass;
 import orbitslot.model.Pass;
-import orbitslot.model.PassCancellation;
+import orbitslot.model.Disruption.PassCancellation;
 import orbitslot.model.Schedule;
 
 import java.awt.BasicStroke;

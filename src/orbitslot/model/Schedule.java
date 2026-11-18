@@ -15,6 +15,12 @@ import java.util.Optional;
  */
 public final class Schedule {
 
+    /** A decision: this pass is tracked by this antenna. */
+    public record Assignment(Pass pass, Antenna antenna) { }
+
+    /** A pass the scheduler could not place, and why. */
+    public record DroppedPass(Pass pass, String reason) { }
+
     private final GroundStation station;
     private final Map<String, Assignment> assignments = new LinkedHashMap<>();   // by pass id
     private final Map<String, DroppedPass> dropped = new LinkedHashMap<>();      // by pass id

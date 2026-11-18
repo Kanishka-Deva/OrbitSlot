@@ -1,10 +1,10 @@
 package orbitslot.catalog;
 
 import orbitslot.io.Assumptions;
-import orbitslot.model.CommsSat;
-import orbitslot.model.CubeSat;
+import orbitslot.model.Satellite.CommsSat;
+import orbitslot.model.Satellite.CubeSat;
 import orbitslot.model.Satellite;
-import orbitslot.model.WeatherSat;
+import orbitslot.model.Satellite.WeatherSat;
 
 /**
  * Factory: turns a type key plus identity into the right Satellite subclass,
