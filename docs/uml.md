@@ -13,7 +13,7 @@ Legend: `<|--` inheritance / implements, `*--` composition, `o--` aggregation,
 classDiagram
     direction LR
     class Satellite {
-        <<abstract>>
+        <<abstract sealed>>
         -int noradId
         -String name
         -int priority
@@ -21,9 +21,15 @@ classDiagram
         -double bufferMB
         +typeName()* String
     }
-    class WeatherSat
-    class CommsSat
-    class CubeSat
+    class WeatherSat {
+        <<nested in Satellite>>
+    }
+    class CommsSat {
+        <<nested in Satellite>>
+    }
+    class CubeSat {
+        <<nested in Satellite>>
+    }
     Satellite <|-- WeatherSat
     Satellite <|-- CommsSat
     Satellite <|-- CubeSat
@@ -54,13 +60,13 @@ classDiagram
     Pass --> "1" Satellite
 
     class Assignment {
-        <<record>>
+        <<record nested in Schedule>>
     }
     Assignment --> Pass
     Assignment --> Antenna
 
     class DroppedPass {
-        <<record>>
+        <<record nested in Schedule>>
         String reason
     }
     DroppedPass --> Pass
@@ -83,10 +89,10 @@ classDiagram
         +announcedAt() Instant
     }
     class PassCancellation {
-        <<record>>
+        <<record nested in Disruption>>
     }
     class AntennaOutage {
-        <<record>>
+        <<record nested in Disruption>>
         Instant from, to
         +blocks(Assignment) boolean
     }
@@ -188,6 +194,7 @@ classDiagram
     class DisruptionSimulator {
         -List~Constraint~ baseConstraints
         +addListener(ScheduleListener)
+        +generate(Schedule, Instant, Instant, long seed, Assumptions) List~Disruption~
         +run(Schedule, List~Pass~, List~Disruption~, RepairStrategy) DisruptionResult
     }
     class ScheduleListener {
@@ -231,14 +238,10 @@ classDiagram
     DisruptionSimulator ..> DisruptionResult : returns
     DisruptionSimulator ..> AntennaOutageConstraint : adds per outage
 
-    class ScenarioGenerator {
-        +passes(List~Pass~, long seed) List~Pass~
-        +disruptions(Schedule, Instant, Instant, long seed) List~Disruption~
-    }
     class BenchmarkRunner {
         +run(...) Results
+        -subset(List~Pass~, long seed) List~Pass~
     }
-    BenchmarkRunner --> ScenarioGenerator
     BenchmarkRunner --> DisruptionSimulator
     BenchmarkRunner --> MetricsCalculator
     BenchmarkRunner ..> Scheduler
@@ -302,14 +305,15 @@ classDiagram
     }
     MetricsCalculator ..> Metrics : creates
 
-    class SchedulePrinter
-    class MetricsTablePrinter
-    class PassTablePrinter
+    class ConsolePrinter {
+        +printPasses(List~Pass~)
+        +printSchedule(String, Schedule, Instant, Instant)
+        +printMetrics(String, List~Metrics~)
+    }
     class BenchmarkPrinter
 
     class ChartWriter {
-        +singleRunMetrics(String, String, List~Metrics~)
-        +benchmark(Results, String)
+        +benchmark(Results, String, BufferedImage) : writes summary.png only
         +write(String, BufferedImage)
     }
     class BarChart {
