@@ -22,9 +22,7 @@ import orbitslot.model.GroundStation;
 import orbitslot.model.Pass;
 import orbitslot.model.Schedule;
 import orbitslot.output.BenchmarkPrinter;
-import orbitslot.output.MetricsTablePrinter;
-import orbitslot.output.PassTablePrinter;
-import orbitslot.output.SchedulePrinter;
+import orbitslot.output.ConsolePrinter;
 import orbitslot.repair.DisruptionResult;
 import orbitslot.repair.DisruptionSimulator;
 import orbitslot.repair.NoRepair;
@@ -65,7 +63,7 @@ public final class Main {
     /** Everything the modes share. */
     private record Context(Assumptions assumptions, GroundStation station, Instant start, Instant end,
                            List<Pass> passes, List<Constraint> constraints, MetricsCalculator calculator,
-                           ZoneId zone, int rowLimit) { }
+                           ZoneId zone, ConsolePrinter printer) { }
 
     public static void main(String[] args) {
         System.setProperty("java.awt.headless", "true");   // charts are drawn off-screen
@@ -125,7 +123,7 @@ public final class Main {
         List<Pass> passes = source.passes(catalog.satellites(), station, start, end);
 
         ZoneId zone = assumptions.getZone("display.timezone");
-        int rowLimit = options.showAll() ? 0 : DEFAULT_ROW_LIMIT;
+        ConsolePrinter printer = new ConsolePrinter(zone, options.showAll() ? 0 : DEFAULT_ROW_LIMIT, System.out);
 
         System.out.println("OrbitSlot - satellite pass scheduler (" + options.mode() + ")");
         System.out.println("Station   : " + station);
@@ -136,18 +134,17 @@ public final class Main {
                 + overrides.size() + " priority override(s)");
         System.out.println();
         if (options.showPasses()) {
-            new PassTablePrinter(zone).print(passes, rowLimit, System.out);
+            printer.printPasses(passes);
             System.out.println();
         }
         MetricsCalculator calculator = new MetricsCalculator(assumptions.getInt("metrics.highPriorityMin"));
-        return new Context(assumptions, station, start, end, passes, constraints, calculator, zone, rowLimit);
+        return new Context(assumptions, station, start, end, passes, constraints, calculator, zone, printer);
     }
 
     // --- plan ----------------------------------------------------------------
 
     private static void runPlan(Context ctx, List<Scheduler> schedulers, boolean charts) throws IOException {
         ScheduleValidator validator = new ScheduleValidator();
-        SchedulePrinter printer = new SchedulePrinter(ctx.zone(), ctx.rowLimit());
         List<Metrics> results = new ArrayList<>();
         List<GanttChart.Panel> panels = new ArrayList<>();
 
@@ -155,10 +152,10 @@ public final class Main {
             Schedule schedule = scheduler.schedule(ctx.passes(), ctx.station());
             panels.add(new GanttChart.Panel(scheduler.name(), schedule));
             requireValid(scheduler.name(), validator.validate(schedule, ctx.passes()));
-            printer.print(scheduler.name(), schedule, ctx.start(), ctx.end(), System.out);
+            ctx.printer().printSchedule(scheduler.name(), schedule, ctx.start(), ctx.end());
             results.add(ctx.calculator().calculate(scheduler.name(), ctx.passes(), schedule, ctx.start(), ctx.end()));
         }
-        new MetricsTablePrinter().print("Metrics", results, System.out);
+        ctx.printer().printMetrics("Metrics", results);
         System.out.println("All schedules passed validation (no overlaps, turnaround respected).");
         if (charts) {
             ChartWriter writer = new ChartWriter(CHARTS);
@@ -198,13 +195,12 @@ public final class Main {
         }
         if (repairs.size() == 1) {
             System.out.println();
-            new SchedulePrinter(ctx.zone(), ctx.rowLimit())
-                    .print("after repair '" + repairs.get(0).name() + "'", results.get(0).schedule(),
-                            ctx.start(), ctx.end(), System.out);
+            ctx.printer().printSchedule("after repair '" + repairs.get(0).name() + "'", results.get(0).schedule(),
+                    ctx.start(), ctx.end());
         }
 
         System.out.println();
-        new MetricsTablePrinter().print("Metrics (plan = before disruptions)", metrics, System.out);
+        ctx.printer().printMetrics("Metrics (plan = before disruptions)", metrics);
         System.out.println();
         System.out.printf("%-10s  %13s  %12s%n", "Repair", "Forced losses", "Plan changes");
         for (DisruptionResult r : results) {
