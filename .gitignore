@@ -17,3 +17,8 @@ results/
 # OS clutter
 Thumbs.db
 .DS_Store
+
+# personal planning notes (kept locally, not in the repo)
+/schedule.md
+/plan.txt
+/context.txt
