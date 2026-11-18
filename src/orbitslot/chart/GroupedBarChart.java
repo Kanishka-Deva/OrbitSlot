@@ -17,9 +17,10 @@ public final class GroupedBarChart {
     private static final int HEIGHT = 460;
     private static final int LEFT = 78, RIGHT = 28, TOP = 84, BOTTOM = 64;
 
+    /** @param minWidth the image is at least this wide (wider if there are many categories) */
     public BufferedImage render(String title, String subtitle, String unit, String categoryAxis,
-                                List<String> categories, List<Series> series) {
-        int width = Math.max(760, LEFT + RIGHT + categories.size() * (series.size() * 14 + 16));
+                                List<String> categories, List<Series> series, int minWidth) {
+        int width = Math.max(minWidth, LEFT + RIGHT + categories.size() * (series.size() * 14 + 16));
         BufferedImage img = Canvas.image(width, HEIGHT);
         Graphics2D g = Canvas.graphics(img);
         Canvas.title(g, title, subtitle, LEFT - 50);

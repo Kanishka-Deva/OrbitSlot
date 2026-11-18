@@ -163,16 +163,7 @@ public final class Main {
         System.out.println("All schedules passed validation (no overlaps, turnaround respected).");
         if (charts) {
             ChartWriter writer = new ChartWriter(CHARTS);
-            GanttChart gantt = gantt(ctx);
-            for (GanttChart.Panel p : panels) {
-                writer.write("gantt-" + p.title(), gantt.render("Schedule: " + p.title(), subtitle(ctx),
-                        List.of(p), ctx.start(), ctx.end()));
-            }
-            if (panels.size() > 1) {
-                writer.write("gantt-compare", gantt.render("Schedules compared", subtitle(ctx), panels,
-                        ctx.start(), ctx.end()));
-            }
-            writer.singleRunMetrics("plan", subtitle(ctx), results);
+            writer.write("gantt-plan", planGantt(ctx, panels, GanttChart.DEFAULT_WIDTH));
             printCharts(writer);
         }
         printFootnote(ctx);
@@ -223,19 +214,18 @@ public final class Main {
         }
         System.out.println("All repaired schedules passed validation (no cancelled pass kept, nothing during outages).");
         if (charts) {
-            ChartWriter writer = new ChartWriter(CHARTS);
-            GanttChart gantt = gantt(ctx);
-            String sub = subtitle(ctx) + "; " + disruptions.size() + " seeded disruptions";
+            // One timeline: the plan, then what was executed with each repair strategy.
+            List<GanttChart.Panel> panels = new ArrayList<>();
+            panels.add(new GanttChart.Panel("Plan (" + planner.name() + ", before disruptions)", plan,
+                    disruptions, Set.of()));
             for (DisruptionResult r : results) {
-                List<GanttChart.Panel> panels = List.of(
-                        new GanttChart.Panel("Plan (" + planner.name() + ", before disruptions)", plan,
-                                disruptions, Set.of()),
-                        new GanttChart.Panel("Executed with repair '" + r.strategy() + "'", r.schedule(),
-                                disruptions, changedBy(plan, r.schedule())));
-                writer.write("gantt-disrupt-" + r.strategy(), gantt.render(
-                        "Disruptions: plan vs repair '" + r.strategy() + "'", sub, panels, ctx.start(), ctx.end()));
+                panels.add(new GanttChart.Panel("Executed with repair '" + r.strategy() + "'", r.schedule(),
+                        disruptions, changedBy(plan, r.schedule())));
             }
-            writer.singleRunMetrics("disrupt", subtitle(ctx) + "; plan = before disruptions", metrics);
+            ChartWriter writer = new ChartWriter(CHARTS);
+            writer.write("gantt-disrupt", gantt(ctx, GanttChart.DEFAULT_WIDTH).render(
+                    "Disruptions: plan vs repair strategies",
+                    subtitle(ctx) + "; " + disruptions.size() + " seeded disruptions", panels, ctx.start(), ctx.end()));
             printCharts(writer);
         }
         printFootnote(ctx);
@@ -267,10 +257,21 @@ public final class Main {
         System.out.println("All " + (results.plans().size() + results.repairs().size())
                 + " schedules passed validation. Raw rows: " + BENCHMARK_CSV);
         if (options.charts()) {
+            // The summary also shows each algorithm's schedule for the full day (all satellites).
+            ScheduleValidator validator = new ScheduleValidator();
+            List<GanttChart.Panel> panels = new ArrayList<>();
+            for (Scheduler scheduler : schedulers) {
+                Schedule schedule = scheduler.schedule(ctx.passes(), ctx.station());
+                requireValid(scheduler.name(), validator.validate(schedule, ctx.passes()));
+                panels.add(new GanttChart.Panel(scheduler.name(), schedule));
+            }
+            java.awt.image.BufferedImage gantt = planGantt(ctx, panels, ChartWriter.SUMMARY_CONTENT_WIDTH);
+
             ChartWriter writer = new ChartWriter(CHARTS);
+            writer.write("gantt-plan", gantt);
             writer.benchmark(results, String.format(Locale.ROOT, "%d scenarios (seeds %d-%d), %d satellites each, %s",
                     scenarios, firstSeed, firstSeed + scenarios - 1, a.getInt("bench.satellitesPerScenario"),
-                    ctx.station().name()));
+                    ctx.station().name()), gantt);
             printCharts(writer);
         }
         printFootnote(ctx);
@@ -298,8 +299,15 @@ public final class Main {
         }
     }
 
-    private static GanttChart gantt(Context ctx) {
-        return new GanttChart(ctx.zone(), ctx.assumptions().getInt("metrics.highPriorityMin"));
+    private static GanttChart gantt(Context ctx, int width) {
+        return new GanttChart(ctx.zone(), ctx.assumptions().getInt("metrics.highPriorityMin"), width);
+    }
+
+    /** Full-day timeline with one panel per algorithm. */
+    private static java.awt.image.BufferedImage planGantt(Context ctx, List<GanttChart.Panel> panels, int width) {
+        String title = panels.size() == 1 ? "Schedule: " + panels.get(0).title()
+                : "Schedules of the algorithms for the full day";
+        return gantt(ctx, width).render(title, subtitle(ctx), panels, ctx.start(), ctx.end());
     }
 
     private static String subtitle(Context ctx) {

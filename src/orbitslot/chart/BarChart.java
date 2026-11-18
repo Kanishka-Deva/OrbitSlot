@@ -16,8 +16,8 @@ public final class BarChart {
     /** One bar. For a single run, min = max = value and no whisker is drawn. */
     public record Bar(String label, double value, double min, double max) { }
 
-    private static final int WIDTH = 760;
-    private static final int HEIGHT = 480;
+    static final int WIDTH = 760;
+    static final int HEIGHT = 480;
     private static final int LEFT = 78, RIGHT = 28, TOP = 98, BOTTOM = 58;
 
     /**

@@ -43,19 +43,28 @@ public final class GanttChart {
     }
 
     private static final String[] TYPES = {"Weather", "Comms", "CubeSat"};
+    /** Colour slots for the types: deliberately not slots 0-3, which mean algorithms / repairs in the bar charts. */
+    private static final int[] TYPE_SLOTS = {6, 4, 5};
     private static final Color OUTAGE_FILL = new Color(0xecebe7);
     private static final Color OUTAGE_HATCH = new Color(0x9a9992);
 
-    private static final int WIDTH = 2000;
+    /** Default image width in pixels. */
+    public static final int DEFAULT_WIDTH = 2000;
     private static final int LEFT = 150, RIGHT = 30, TOP = 92;
     private static final int PANEL_HEADER = 30, AXIS_ROW = 18, ROW = 38, BAR = 26, SMALL_ROW = 26, PANEL_GAP = 26;
 
     private final ZoneId zone;
     private final int highPriorityMin;
+    private final int width;
 
     public GanttChart(ZoneId zone, int highPriorityMin) {
+        this(zone, highPriorityMin, DEFAULT_WIDTH);
+    }
+
+    public GanttChart(ZoneId zone, int highPriorityMin, int width) {
         this.zone = zone;
         this.highPriorityMin = highPriorityMin;
+        this.width = width;
     }
 
     public BufferedImage render(String title, String subtitle, List<Panel> panels, Instant start, Instant end) {
@@ -63,7 +72,7 @@ public final class GanttChart {
         for (Panel p : panels) {
             height += panelHeight(p) + PANEL_GAP;
         }
-        BufferedImage img = Canvas.image(WIDTH, height);
+        BufferedImage img = Canvas.image(width, height);
         Graphics2D g = Canvas.graphics(img);
         Canvas.title(g, title, subtitle, 24);
         legend(g, panels.stream().anyMatch(p -> !p.disruptions().isEmpty()),
@@ -88,7 +97,7 @@ public final class GanttChart {
 
     private void drawPanel(Graphics2D g, Panel p, int top, Instant start, Instant end) {
         Schedule s = p.schedule();
-        double plotLeft = LEFT, plotRight = WIDTH - RIGHT;
+        double plotLeft = LEFT, plotRight = width - RIGHT;
         double seconds = Duration.between(start, end).toSeconds();
         java.util.function.ToDoubleFunction<Instant> x = t -> {
             double f = Duration.between(start, t).toSeconds() / seconds;
@@ -217,16 +226,16 @@ public final class GanttChart {
         String type = pass.satellite().typeName();
         for (int i = 0; i < TYPES.length; i++) {
             if (TYPES[i].equals(type)) {
-                return Canvas.series(i);
+                return Canvas.series(TYPE_SLOTS[i]);
             }
         }
-        return Canvas.series(TYPES.length);
+        return Canvas.AXIS;   // unknown type: neutral grey, never a colour with a meaning
     }
 
     private void legend(Graphics2D g, boolean disruptions, boolean added) {
         int lx = 24, ly = 72;
         for (int i = 0; i < TYPES.length; i++) {
-            lx = Canvas.legendEntry(g, lx, ly, Canvas.series(i), TYPES[i] + " pass");
+            lx = Canvas.legendEntry(g, lx, ly, Canvas.series(TYPE_SLOTS[i]), TYPES[i] + " pass");
         }
         lx = Canvas.legendEntry(g, lx, ly, Canvas.CRITICAL, "missed high-priority pass (prio ≥ " + highPriorityMin + ")");
         if (disruptions) {
