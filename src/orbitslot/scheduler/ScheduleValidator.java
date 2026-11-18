@@ -2,8 +2,11 @@ package orbitslot.scheduler;
 
 import orbitslot.constraint.Turnaround;
 import orbitslot.model.Antenna;
+import orbitslot.model.AntennaOutage;
 import orbitslot.model.Assignment;
+import orbitslot.model.Disruption;
 import orbitslot.model.DroppedPass;
+import orbitslot.model.PassCancellation;
 import orbitslot.model.GroundStation;
 import orbitslot.model.Pass;
 import orbitslot.model.Schedule;
@@ -56,6 +59,28 @@ public final class ScheduleValidator {
         for (Pass p : input) {
             if (!assigned.contains(p.id()) && !dropped.contains(p.id())) {
                 problems.add("pass " + p.id() + " is neither assigned nor dropped");
+            }
+        }
+        return problems;
+    }
+
+    /** Extra checks after disruptions: no cancelled pass kept, nothing tracked during an outage. */
+    public List<String> validate(Schedule schedule, List<Pass> input, List<Disruption> disruptions) {
+        List<String> problems = validate(schedule, input);
+        for (Disruption d : disruptions) {
+            switch (d) {
+                case PassCancellation c -> {
+                    if (schedule.assignmentOf(c.pass()).isPresent()) {
+                        problems.add("cancelled pass " + c.pass().id() + " is still scheduled");
+                    }
+                }
+                case AntennaOutage o -> {
+                    for (Assignment a : schedule.assignmentsFor(o.antenna())) {
+                        if (o.blocks(a)) {
+                            problems.add("pass " + a.pass().id() + " overlaps an outage of " + o.antenna());
+                        }
+                    }
+                }
             }
         }
         return problems;
