@@ -82,23 +82,29 @@ Decisions made in Stage 1:
 - `metrics`:
   - `MetricsCalculator`: total data downlinked, antenna utilisation %, number of high-priority passes missed, total passes dropped
 - Console output:
-  - [ ] Schedule table per antenna (time, satellite, duration, data volume)
-  - [ ] List of dropped passes, each with its reason
-  - [ ] Metrics summary
-  - [ ] A simple ASCII timeline per antenna (works as our "chart" until JavaFX)
-- [ ] Self-check: a `ScheduleValidator` that confirms no antenna has overlapping passes (slew time included). Run it after every scheduler.
+  - [x] Schedule table per antenna (time, satellite, duration, data volume)
+  - [x] List of dropped passes, each with its reason
+  - [x] Metrics summary
+  - [x] A simple ASCII timeline per antenna (works as our "chart" until JavaFX)
+- [x] Self-check: a `ScheduleValidator` that confirms no antenna has overlapping passes (slew time included). Run it after every scheduler.
+
+Done in Stage 2 (decisions):
+- Passes are all-or-nothing. Between passes an antenna needs slew time (azimuth only, shorter way round) + a fixed setup time (`station.setupSeconds`, default 60 s).
+- `BufferConstraint` is **skipped for now** (decided 18 Nov). `Constraint` returns `Optional<String>` (empty = allowed, otherwise the reason).
+- FCFS and Greedy share `OrderedAssignmentScheduler` (Template Method); they differ only in the sort order. FCFS ties are broken by pass id.
+- High priority = priority >= 8 (`metrics.highPriorityMin`).
 
 ## Stage 3: Real orbit data (W3–W4: 2–15 Dec)
 
-- [ ] `TleLoader`: reads the CelesTrak TLE snapshot and maps each satellite to a subclass (using the group name or a small mapping file). This can be a simple **Factory**.
-- [ ] `Predict4JavaPassSource implements PassSource`: predicts passes over a time window (e.g. 24 h) for one station, using the minimum elevation from the assumptions file.
-  - Found in Stage 0: predict4java's AOS/LOS are at the 0° horizon, so trim each pass to the 10° mask (or drop it if max elevation < 10°), and `getPasses` can return passes beyond the window, so clip to [start, end).
-- [ ] Station coordinates in `data/stations.csv` (we can take a few real ones from SatNOGS).
-- [ ] Compare a few predicted passes with an online pass predictor as a sanity check.
-- [ ] **Fallback:** if predict4java causes trouble, keep using `SimulatedPassSource` and keep the rest of the project moving. Orbit prediction must not block scheduling.
+- [x] Loading + mapping to subclasses: done in Stage 1 as `SatelliteCatalog` + `SatelliteFactory` (OMM JSON, converted to TLE).
+- [x] `Predict4JavaPassSource implements PassSource`: predicts passes over the window for one station, trims them to the minimum elevation (binary search, 1 s), drops passes outside [start, end).
+  - predict4java's own `getMaxEl()` underestimates high passes by up to ~12°, so the source finds the highest point itself (ternary search on elevation).
+- [x] Station coordinates in `data/stations.csv` (SatNOGS #1492).
+- [x] Sanity check against an independent predictor: all 995 passes of 18 Nov matched Skyfield 1.55 (sgp4 2.27) fed the same OMM data, with AOS/LOS within 1 s and max elevation within 0.02°.
+- [x] **Fallback:** `--source sim` still uses `SimulatedPassSource`.
 
 ### Milestone A (15 Dec): core works end to end
-`run.ps1 --source celestrak --station <id> --algo greedy` prints a valid schedule plus metrics, and the same run with `--algo fcfs` also works.
+`run.ps1 --source celestrak --station <id> --algo greedy` prints a valid schedule plus metrics, and the same run with `--algo fcfs` also works. **Reached on 18 Nov.**
 
 ## Stage 4: Scenarios + benchmark (W5: 16–22 Dec)
 
